@@ -15,7 +15,7 @@ import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 // TODO: Pokazanie jak tworzyć bardziej rozbudowane composables + przekazywanie parametrów do nich
 // TODO: Wykorzystanie różnego rodzaju list (LazyColumn, LazyRow)
 // TODO: Pokazanie MaterialDesign3 + aplikacja z przykładami
-//
+// TODO: Pokazanie problemu związanego ze zmianami konfiguracji (np. rotacja ekranu) + rozwiązanie tego problemu (np. SavedInstanceState lub ViewModel)
 
 class MainActivity : ComponentActivity() {
 
