@@ -1,0 +1,32 @@
+<!--
+    RESOURCES: Internationalization (i18n)
+    This file is in the values-pl/ qualifier folder.
+    Android automatically picks the best-matching folder based on the device locale.
+
+    Resolution order example for locale = pl-PL:
+        1. values-pl-rPL/  (region-specific Polish)
+        2. values-pl/      (language-specific Polish)  ← this file
+        3. values/         (default fallback)
+
+    Any string NOT overridden here falls back to values/strings.xml.
+    To test: Settings → System → Language & input → add Polish as the first language.
+-->
+<resources>
+    <string name="app_name">QuizPokaz</string>
+    <string name="welcome_message">Witaj w demonstracji quizu</string>
+    <string name="user_name_label">Wprowadź swoje imię</string>
+    <string name="dark_theme_toggle">Ciemny motyw</string>
+    <string name="select_category_title">Wybierz kategorię</string>
+    <string name="quiz_finished_title">Quiz zakończony!</string>
+    <string name="great_job_message">Dobra robota, %1$s!</string>
+    <string name="your_score_label">Twój wynik</string>
+    <string name="back_to_categories_button">Powrót do kategorii</string>
+    <string name="exit_dialog_title">Wyjść z quizu?</string>
+    <string name="exit_dialog_message">Twój postęp zostanie utracony.</string>
+    <string name="exit_confirm_button">Wyjdź</string>
+    <string name="cancel_button">Anuluj</string>
+    <string name="difficulty_easy">Łatwy</string>
+    <string name="difficulty_medium">Średni</string>
+    <string name="difficulty_hard">Trudny</string>
+</resources>
+

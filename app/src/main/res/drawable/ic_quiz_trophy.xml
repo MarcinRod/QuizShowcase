@@ -1,0 +1,50 @@
+<!--
+    RESOURCES: Drawable — Vector Asset
+    Stored in res/drawable/  (no density qualifier needed — vectors scale perfectly).
+    Accessed in Compose via:  painterResource(R.drawable.ic_quiz_trophy)
+    The R class entry is:     R.drawable.ic_quiz_trophy
+
+    Compare with Material Icons (used elsewhere in this app):
+        Icon(Icons.Rounded.CheckCircle, ...)   — in-memory ImageVector, no R class
+        painterResource(R.drawable.ic_quiz_trophy) — XML asset, resolved via R class
+
+    Use painterResource() when you need:
+      • Custom brand assets not in Material Icons
+      • Assets shared with Views / XML layouts
+      • Animated vector drawables (AnimatedVectorDrawable)
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Cup body -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M12,15C8.686,15 6,12.314 6,9L6,3L18,3L18,9C18,12.314 15.314,15 12,15Z" />
+    <!-- Handles -->
+    <path
+        android:fillColor="#FFB300"
+        android:strokeColor="#F57F17"
+        android:strokeWidth="1.5"
+        android:pathData="M6,5L4,5C3.448,5 3,5.448 3,6L3,8C3,9.657 4.343,11 6,11" />
+    <path
+        android:fillColor="#FFB300"
+        android:strokeColor="#F57F17"
+        android:strokeWidth="1.5"
+        android:pathData="M18,5L20,5C20.552,5 21,5.448 21,6L21,8C21,9.657 19.657,11 18,11" />
+    <!-- Stem -->
+    <path
+        android:fillColor="#FFB300"
+        android:pathData="M11,15L11,19L9,19L9,21L15,21L15,19L13,19L13,15Z" />
+    <!-- Base -->
+    <path
+        android:fillColor="#F57F17"
+        android:pathData="M8,21L16,21L16,22L8,22Z" />
+    <!-- Star on cup -->
+    <path
+        android:fillColor="#FFF9C4"
+        android:pathData="M12,6L12.5,7.5L14,7.5L12.9,8.4L13.3,10L12,9.1L10.7,10L11.1,8.4L10,7.5L11.5,7.5Z" />
+</vector>
+
