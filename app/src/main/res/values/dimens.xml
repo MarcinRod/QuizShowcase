@@ -1,0 +1,10 @@
+<resources>
+    <dimen name="padding_small">8.dp</dimen>
+    <dimen name="padding_medium">16.dp</dimen>
+    <dimen name="padding_large">24.dp</dimen>
+    <dimen name="spacing_standard">16.dp</dimen>
+    <dimen name="card_height">100.dp</dimen>
+    <dimen name="icon_size_medium">32.dp</dimen>
+    <dimen name="icon_size_large">80.dp</dimen>
+    <dimen name="progress_bar_height">8.dp</dimen>
+</resources>

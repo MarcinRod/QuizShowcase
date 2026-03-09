@@ -1,0 +1,10 @@
+<resources>
+    <color name="primary_light">#E65100</color> <!-- Vibrant Orange -->
+    <color name="primary_container_light">#FFE0B2</color>
+    <color name="secondary_light">#00796B</color> <!-- Energetic Teal -->
+    <color name="tertiary_light">#C2185B</color> <!-- Vibrant Pink -->
+
+    <color name="primary_dark">#FFB74D</color>
+    <color name="secondary_dark">#4DB6AC</color>
+    <color name="tertiary_dark">#F06292</color>
+</resources>

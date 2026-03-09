@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">QuizShowcase</string>
+    <string name="welcome_message">Welcome to the Quiz Demo</string>
+    <string name="user_name_label">Enter your name</string>
+    <string name="dark_theme_toggle">Dark Theme</string>
+    <string name="difficulty_label">Difficulty: %1$s</string>
+    <string name="select_category_title">Select a Category</string>
+    <string name="lifecycle_events_title">Lifecycle Events (Last 3):</string>
+    <string name="progress_label">Progress: %1$d%%</string>
+    <string name="question_counter">Question %1$d of %2$d</string>
+    <string name="quit_quiz_button">Quit Quiz</string>
+    <string name="quiz_finished_title">Quiz Finished!</string>
+    <string name="great_job_message">Great job, %1$s!</string>
+    <string name="your_score_label">Your Score</string>
+    <string name="back_to_categories_button">Back to Categories</string>
+    <string name="exit_dialog_title">Exit Quiz?</string>
+    <string name="exit_dialog_message">Your progress will be lost.</string>
+    <string name="exit_confirm_button">Exit</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="difficulty_easy">Easy</string>
+    <string name="difficulty_medium">Medium</string>
+    <string name="difficulty_hard">Hard</string>
+    <string name="settings_description">Settings</string>
+</resources>
