@@ -3,17 +3,23 @@ package pl.marrod.quizshowcase.ui
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Computer
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
@@ -24,13 +30,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import pl.marrod.quizshowcase.R
 import pl.marrod.quizshowcase.data.Category
+import pl.marrod.quizshowcase.data.Question
 import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuizScreen(viewModel: QuizViewModel) {
-    val uiState by viewModel.uiState.collectAsState()
-
+fun QuizScreen(
+    uiState: QuizUiState,
+    onUserNameChange: (String) -> Unit,
+    onThemeToggle: (Boolean) -> Unit,
+    onDifficultyChange: (Float) -> Unit,
+    onCategorySelect: (Category) -> Unit,
+    onAnswerSelected: (Int) -> Unit,
+    onToggleExitDialog: (Boolean) -> Unit,
+    onResetQuiz: () -> Unit
+) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -48,36 +62,50 @@ fun QuizScreen(viewModel: QuizViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = dimensionResource(R.dimen.padding_medium)),
+                .padding(horizontal = dimensionResource(R.dimen.padding_medium))
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (uiState.selectedCategory == null) {
-                SetupSection(uiState, viewModel)
+                SetupSection(
+                    uiState = uiState,
+                    onUserNameChange = onUserNameChange,
+                    onThemeToggle = onThemeToggle,
+                    onDifficultyChange = onDifficultyChange,
+                    onCategorySelect = onCategorySelect
+                )
             } else if (!uiState.isQuizFinished) {
                 QuizProgressSection(uiState)
                 
                 Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
-                QuestionSection(uiState, viewModel)
+                QuestionSection(
+                    uiState = uiState,
+                    onAnswerSelected = onAnswerSelected,
+                    onToggleExitDialog = onToggleExitDialog
+                )
             } else {
-                ResultsSection(uiState, viewModel)
+                ResultsSection(
+                    uiState = uiState,
+                    onResetQuiz = onResetQuiz
+                )
             }
         }
     }
 
     if (uiState.showExitDialog) {
         AlertDialog(
-            onDismissRequest = { viewModel.toggleExitDialog(false) },
+            onDismissRequest = { onToggleExitDialog(false) },
             confirmButton = {
                 TextButton(onClick = { 
-                    viewModel.toggleExitDialog(false)
-                    viewModel.resetQuiz() 
+                    onToggleExitDialog(false)
+                    onResetQuiz() 
                 }) {
                     Text(stringResource(R.string.exit_confirm_button))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.toggleExitDialog(false) }) {
+                TextButton(onClick = { onToggleExitDialog(false) }) {
                     Text(stringResource(R.string.cancel_button))
                 }
             },
@@ -88,84 +116,111 @@ fun QuizScreen(viewModel: QuizViewModel) {
 }
 
 @Composable
-fun ColumnScope.SetupSection(uiState: QuizUiState, viewModel: QuizViewModel) {
-    Text(
-        stringResource(R.string.welcome_message),
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold
-    )
-    
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
-
-    TextField(
-        value = uiState.userName,
-        onValueChange = { viewModel.onUserNameChange(it) },
-        label = { Text(stringResource(R.string.user_name_label)) },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true
-    )
-
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(stringResource(R.string.dark_theme_toggle), modifier = Modifier.weight(1f))
-        Switch(
-            checked = uiState.isDarkTheme,
-            onCheckedChange = { viewModel.onThemeToggle(it) }
+fun SetupSection(
+    uiState: QuizUiState,
+    onUserNameChange: (String) -> Unit,
+    onThemeToggle: (Boolean) -> Unit,
+    onDifficultyChange: (Float) -> Unit,
+    onCategorySelect: (Category) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            stringResource(R.string.welcome_message),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
         )
-    }
+        
+        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
-
-    Column {
-        val difficultyLabel = when (uiState.difficulty.toInt()) {
-            1 -> stringResource(R.string.difficulty_easy)
-            2 -> stringResource(R.string.difficulty_medium)
-            3 -> stringResource(R.string.difficulty_hard)
-            else -> stringResource(R.string.difficulty_easy)
-        }
-        Text(stringResource(R.string.difficulty_label, difficultyLabel))
-        Slider(
-            value = uiState.difficulty,
-            onValueChange = { viewModel.onDifficultyChange(it) },
-            valueRange = 1f..3f,
-            steps = 1
+        TextField(
+            value = uiState.userName,
+            onValueChange = onUserNameChange,
+            label = { Text(stringResource(R.string.user_name_label)) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
-    }
 
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_large)))
-
-    Text(
-        stringResource(R.string.select_category_title),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Start
-    )
-
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
-
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_small)),
-        verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_small)),
-        modifier = Modifier.weight(1f)
-    ) {
-        items(uiState.categories) { category ->
-            CategoryCard(category) { viewModel.selectCategory(category) }
-        }
-    }
-    
-    if (uiState.lifecycleEvents.isNotEmpty()) {
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
-        Text(stringResource(R.string.lifecycle_events_title), style = MaterialTheme.typography.labelSmall)
-        val events = uiState.lifecycleEvents.takeLast(3)
-        events.forEach { event ->
-            Text(event, style = MaterialTheme.typography.bodySmall)
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.dark_theme_toggle), modifier = Modifier.weight(1f))
+            Switch(
+                checked = uiState.isDarkTheme,
+                onCheckedChange = onThemeToggle
+            )
         }
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
+
+        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
+
+        Column(modifier = Modifier.fillMaxWidth()) {
+            val difficultyLabel = when (uiState.difficulty.toInt()) {
+                1 -> stringResource(R.string.difficulty_easy)
+                2 -> stringResource(R.string.difficulty_medium)
+                3 -> stringResource(R.string.difficulty_hard)
+                else -> stringResource(R.string.difficulty_easy)
+            }
+            Text(stringResource(R.string.difficulty_label, difficultyLabel))
+            Slider(
+                value = uiState.difficulty,
+                onValueChange = onDifficultyChange,
+                valueRange = 1f..3f,
+                steps = 1
+            )
+        }
+
+        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_large)))
+
+        Text(
+            stringResource(R.string.select_category_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Start
+        )
+
+        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
+
+        // Using a height-restricted LazyVerticalGrid because it's inside a scrollable Column
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_small)),
+            verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_small)),
+            modifier = Modifier.heightIn(max = 300.dp) 
+        ) {
+            items(uiState.categories) { category ->
+                CategoryCard(category) { onCategorySelect(category) }
+            }
+        }
+        
+        if (uiState.lifecycleEvents.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
+            Text(stringResource(R.string.lifecycle_events_title), style = MaterialTheme.typography.labelSmall)
+            
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                itemsIndexed(uiState.lifecycleEvents) { index, event ->
+                    Text(
+                        text = event,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    if (index < uiState.lifecycleEvents.size - 1) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
+        }
     }
 }
 
@@ -209,63 +264,71 @@ fun QuizProgressSection(uiState: QuizUiState) {
 }
 
 @Composable
-fun ColumnScope.QuestionSection(uiState: QuizUiState, viewModel: QuizViewModel) {
-    val question = uiState.currentQuestion ?: return
+fun QuestionSection(
+    uiState: QuizUiState,
+    onAnswerSelected: (Int) -> Unit,
+    onToggleExitDialog: (Boolean) -> Unit
+) {
+    Column {
+        val question = uiState.currentQuestion ?: return@Column
 
-    Column(modifier = Modifier.weight(1f)) {
-        Text(
-            text = stringResource(R.string.question_counter, uiState.currentQuestionIndex + 1, uiState.questions.size),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.secondary
-        )
-        
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = stringResource(R.string.question_counter, uiState.currentQuestionIndex + 1, uiState.questions.size),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            
+            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
 
-        Text(
-            text = question.text,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Medium
-        )
+            Text(
+                text = question.text,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Medium
+            )
 
-        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_large)))
+            Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_large)))
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_medium)),
-            modifier = Modifier.weight(1f)
-        ) {
-            items(question.options.size) { index ->
-                val option = question.options[index]
-                Button(
-                    onClick = { viewModel.onAnswerSelected(index) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Text(option, modifier = Modifier.padding(dimensionResource(R.dimen.padding_small)))
+            // Using Column instead of LazyColumn for options because the parent is already scrollable
+            Column(
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_medium))
+            ) {
+                question.options.forEachIndexed { index, option ->
+                    Button(
+                        onClick = { onAnswerSelected(index) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Text(option, modifier = Modifier.padding(dimensionResource(R.dimen.padding_small)))
+                    }
                 }
             }
         }
-    }
 
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
+        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
-    OutlinedButton(
-        onClick = { viewModel.toggleExitDialog(true) },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(stringResource(R.string.quit_quiz_button))
+        OutlinedButton(
+            onClick = { onToggleExitDialog(true) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(stringResource(R.string.quit_quiz_button))
+        }
+        
+        Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
     }
-    
-    Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 }
 
 @Composable
-fun ColumnScope.ResultsSection(uiState: QuizUiState, viewModel: QuizViewModel) {
+fun ResultsSection(
+    uiState: QuizUiState,
+    onResetQuiz: () -> Unit
+) {
     Column(
-        modifier = Modifier.weight(1f),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -309,7 +372,7 @@ fun ColumnScope.ResultsSection(uiState: QuizUiState, viewModel: QuizViewModel) {
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.resetQuiz() },
+            onClick = onResetQuiz,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.back_to_categories_button))
@@ -320,7 +383,22 @@ fun ColumnScope.ResultsSection(uiState: QuizUiState, viewModel: QuizViewModel) {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun QuizScreenPreview() {
+    val mockCategories = listOf(
+        Category("1", "Science", Icons.Rounded.Science),
+        Category("2", "History", Icons.Rounded.History),
+        Category("3", "Computing", Icons.Rounded.Computer),
+        Category("4", "Geography", Icons.Rounded.Public)
+    )
     QuizShowcaseTheme {
-        QuizScreen(viewModel = QuizViewModel())
+        QuizScreen(
+            uiState = QuizUiState(categories = mockCategories),
+            onUserNameChange = {},
+            onThemeToggle = {},
+            onDifficultyChange = {},
+            onCategorySelect = {},
+            onAnswerSelected = {},
+            onToggleExitDialog = {},
+            onResetQuiz = {}
+        )
     }
 }
