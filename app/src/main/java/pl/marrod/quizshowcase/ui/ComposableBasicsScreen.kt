@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,38 +25,22 @@ import androidx.compose.ui.unit.dp
 import pl.marrod.quizshowcase.R
 import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COMPOSABLE BASICS SCREEN
-//
-// This screen is a teaching reference for the fundamental building blocks
-// of Jetpack Compose. Each section demonstrates one concept with a label
-// and a live, interactive example.
-//
-// Topics covered:
-//   1. Column  — vertical stacking
-//   2. Row     — horizontal stacking
-//   3. Box     — overlapping / layering
-//   4. Modifier — chaining layout, appearance and behaviour
-//   5. Card    — elevated, clickable content container
-//   6. Surface — background, shape and elevation for any region
-//   7. State hoisting — counter button whose state lives in the CALLER
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: State Hoisting
-// ComposableBasicsScreen is the "hoist point" for the counter demo.
-// It owns `count` and passes it DOWN to CounterCard, which passes
-// the increment event UP via the `onIncrement` lambda.
-//
-//   ComposableBasicsScreen          ← state owner
-//       │  count (Int)              ← flows DOWN as a parameter
-//       ▼
-//   CounterCard
-//       │  onIncrement ()           ← event flows UP via lambda
-//       └──► ComposableBasicsScreen updates count → recompose
+/**
+ * Ekran demonstracyjny (nie jest składnikiem aplikacji) podstawowych elementów
+ * składowych Jetpack Compose.
+ *
+ * Każda sekcja prezentuje jedno zagadnienie w formie etykiety i interaktywnego przykładu:
+ * 1. **Column** — układanie elementów w pionie
+ * 2. **Row** — układanie elementów w poziomie
+ * 3. **Box** — nakładanie / warstwowanie elementów
+ * 4. **Modifier** — łańcuchowanie układu, wyglądu i zachowania
+ * 5. **Card** — kontener treści z uniesieniem i opcjonalnym kliknięciem
+ * 6. **Surface** — podstawowy kontener z kontrolą tła, kształtu i elewacji
+ * 7. **Wynoszenie stanu** — przycisk licznika, którego stan żyje w WYWOŁUJĄCYM
+ */
 @Composable
 fun ComposableBasicsScreen() {
-    // COMPOSABLE: State — `count` lives here, NOT inside CounterCard.
-    // This is the "hoisted" state: owned at the lowest level that needs it.
+    /** Stan `count` żyje tutaj, NIE wewnątrz [HoistedCounterCard] — to jest „wyniesiony" stan. */
     var count by remember { mutableStateOf(0) }
 
     Column(
@@ -64,9 +50,8 @@ fun ComposableBasicsScreen() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // ── Screen title ────────────────────────────────────────────────────
         Text(
-            text = "Composable Building Blocks",
+            text = "Composable Building Blocks", // celowo wpisane na sztywno, aby pokazać różnicę między hardcoded a string resources
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -90,46 +75,64 @@ fun ComposableBasicsScreen() {
         SurfaceDemo()
 
         SectionDivider("7 · State Hoisting")
-        // COMPOSABLE: State Hoisting — we pass both the value AND the event handler.
-        // CounterCard has no idea where `count` is stored or how it is updated.
-        CounterCard(
+        /**
+         * Przekazujemy zarówno wartość, jak i procedurę obsługi zdarzenia.
+         * [HoistedCounterCard] nie wie, gdzie przechowywany jest `count` ani jak jest aktualizowany.
+         */
+        HoistedCounterCard(
             count = count,
             onIncrement = { count++ },
             onReset = { count = 0 }
         )
+        /**
+         * Przeciwnie do [HoistedCounterCard], ten CounterCard zarządza swoim własnym stanem wewnętrznym.
+         * Nie jest to zalecane, jeśli chcesz ponownie używać tego composable z różnymi wartościami `count`
+         * lub udostępniać jego stan do innych elementów UI.
+         */
+        CounterCard()
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 1 · COLUMN
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: Column
-// Column places its children one below the other (main axis = vertical).
-// Key parameters:
-//   verticalArrangement — spacing / alignment along the vertical axis
-//   horizontalAlignment — alignment of children on the horizontal axis
+/**
+ * [Column] układa dzieci jedno pod drugim (oś główna = pionowa).
+ *
+ * Kluczowe parametry:
+ * - `verticalArrangement` — odstępy i wyrównanie wzdłuż osi pionowej
+ * - `horizontalAlignment` — wyrównanie dzieci na osi poziomej
+ *
+ * ### Modifier użyte w tym przykładzie
+ * - `.fillMaxWidth()` — rozszerza Column do pełnej dostępnej szerokości
+ * - `.background()` — wypełnia tłem w kolorze `surfaceVariant`, aby granica była widoczna
+ * - `.padding()` — dodaje wewnętrzny odstęp między krawędzią Column a jej dziećmi
+ */
 @Composable
-fun ColumnDemo() {
-    // COMPOSABLE: Modifier — .fillMaxWidth() expands the Column to use all available width.
-    // .background() fills it with a surface-variant colour so the boundary is visible.
-    // .padding() adds inner space between the Column's edge and its children.
+fun ColumnDemo(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier
+        modifier = modifier
+            /*      .fillMaxSize()*/
             .fillMaxWidth()
+            /*.fillMaxHeight()*/
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),   // 8 dp gap between each child
-        horizontalAlignment = Alignment.CenterHorizontally  // children centred horizontally
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        /** 8 dp odstępu między każdym dzieckiem */
+        horizontalAlignment = Alignment.CenterHorizontally
+        /** dzieci wyśrodkowane poziomo */
     ) {
         Text("First item", style = MaterialTheme.typography.bodyMedium)
-        Text("Second item", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Second item",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.border(2.dp, Color.Red)
+        )
 
-        // COMPOSABLE: UI Elements — Button inside a Column.
-        // Modifier.fillMaxWidth() makes the button stretch to the Column's full width.
+        /**
+         * Przycisk wewnątrz kolumny.
+         * `Modifier.fillMaxWidth()` rozciąga przycisk na pełną szerokość Column.
+         */
         Button(
             onClick = {},
             modifier = Modifier.fillMaxWidth()
@@ -137,41 +140,54 @@ fun ColumnDemo() {
             Text("Full-width button")
         }
 
-        // COMPOSABLE: UI Elements — Image loaded from a vector drawable via painterResource.
-        // RESOURCES: R.drawable.ic_quiz_trophy — resolved through the R class at runtime.
+        /**
+         * Obraz wczytany z zasobu wektorowego przez `painterResource`.
+         *
+         * **Zasoby:** `R.drawable.ic_quiz_trophy` — rozwiązywany przez klasę R w czasie wykonania.
+         * `.align(Alignment.End)` nadpisuje domyślne `CenterHorizontally` Column dla tego dziecka.
+         */
         Image(
             painter = painterResource(R.drawable.ic_quiz_trophy),
             contentDescription = "Trophy",
             modifier = Modifier
-                .size(48.dp)            // fixed size
-                .align(Alignment.End)   // override column's CenterHorizontally for this child
+                .size(48.dp)
+                .align(Alignment.End)
         )
+
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 2 · ROW
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: Row
-// Row places its children side by side (main axis = horizontal).
-// Key parameters:
-//   horizontalArrangement — spacing / alignment along the horizontal axis
-//   verticalAlignment     — alignment of children on the vertical axis
+/**
+ * [Row] układa dzieci obok siebie (oś główna = pozioma).
+ *
+ * Kluczowe parametry:
+ * - `horizontalArrangement` — odstępy i wyrównanie wzdłuż osi poziomej
+ * - `verticalAlignment` — wyrównanie dzieci na osi pionowej
+ *
+ * ### Modifier `.weight(1f)`
+ * Użycie `.weight(1f)` na dziecku Row sprawia, że wypełnia ono pozostałą przestrzeń,
+ * podczas gdy pozostałe dzieci zachowują swój naturalny rozmiar.
+ * W tym przykładzie nie jest użyte (aby zachować czystość dema `SpaceBetween`),
+ * ale jest pokazane jako komentarz.
+ *
+ * Przykład: `Text("...", modifier = Modifier.weight(1f))`
+ */
 @Composable
-fun RowDemo() {
+fun RowDemo(modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(12.dp)
             )
             .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween, // push children to opposite ends
-        verticalAlignment = Alignment.CenterVertically    // align children on the midline
+        horizontalArrangement = Arrangement.SpaceBetween,
+        /** przesuwa dzieci na przeciwne końce */
+        verticalAlignment = Alignment.CenterVertically
+        /** wyrównuje dzieci do środkowej linii */
     ) {
-        // COMPOSABLE: UI Elements — Icon from Material Icons (in-memory, no R class).
+        /** Ikona z Material Icons — przechowywana w pamięci, bez klasy R. */
         Icon(
             imageVector = Icons.Rounded.Star,
             contentDescription = "Star",
@@ -185,30 +201,26 @@ fun RowDemo() {
             fontWeight = FontWeight.Medium
         )
 
-        // COMPOSABLE: Modifier — .weight(1f) on a Row child makes it fill remaining space.
-        // Useful for making one child expand while others stay at intrinsic size.
-        // (Not used here to keep the SpaceBetween demo clean, but shown as a comment.)
-        //
-        // Example:  Text("...", modifier = Modifier.weight(1f))
-
         Button(onClick = {}) {
             Text("Go")
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 3 · BOX
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: Box
-// Box stacks its children on top of each other (like a frame / FrameLayout).
-// The last child drawn is on top. Each child can position itself with
-// Modifier.align(Alignment.*) relative to the Box bounds.
+/**
+ * [Box] nakłada dzieci na siebie (warstwami).
+ * Ostatnie narysowane dziecko jest na wierzchu. Każde dziecko może pozycjonować się
+ * za pomocą `Modifier.align(Alignment.*)` względem granic Box.
+ *
+ * Warstwy w tym przykładzie:
+ * - **Warstwa 1** — etykieta w lewym dolnym rogu (rysowana pierwsza = najdalej w tle)
+ * - **Warstwa 2** — wyśrodkowany obraz (rysowany drugi = na wierzchu warstwy 1)
+ * - **Warstwa 3** — odznaka w prawym górnym rogu (rysowana ostatnia = na wierzchu wszystkiego)
+ */
 @Composable
-fun BoxDemo() {
+fun BoxDemo(modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(120.dp)
             .background(
@@ -216,32 +228,36 @@ fun BoxDemo() {
                 shape = RoundedCornerShape(12.dp)
             )
     ) {
-        // LAYER 1 — bottom-left label (drawn first = furthest back)
+        /** Warstwa 1 — etykieta w lewym dolnym rogu (rysowana pierwsza = najdalej w tle). */
         Text(
             text = "Background layer",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier
-                .align(Alignment.BottomStart) // position within the Box
+                .align(Alignment.BottomStart)
                 .padding(8.dp)
         )
 
-        // LAYER 2 — centred image (drawn second = on top of layer 1)
+        /** Warstwa 2 — wyśrodkowany obraz (rysowany drugi = na wierzchu warstwy 1). */
         Image(
             painter = painterResource(R.drawable.ic_quiz_trophy),
             contentDescription = "Trophy",
             modifier = Modifier
                 .size(56.dp)
-                .align(Alignment.Center) // centre of the Box
+                .align(Alignment.Center)
         )
 
-        // LAYER 3 — top-right badge (drawn last = on top of everything)
+        /**
+         * Warstwa 3 — odznaka w prawym górnym rogu (rysowana ostatnia = na wierzchu wszystkiego).
+         *
+         * `Modifier.clip(CircleShape)` zmienia kształt obszaru rysowania przed wypełnieniem tłem.
+         */
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)  // top-right corner of the parent Box
+                .align(Alignment.TopEnd)
                 .padding(8.dp)
                 .size(28.dp)
-                .clip(CircleShape)        // COMPOSABLE: Modifier — clip() changes the shape
+                .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.error),
             contentAlignment = Alignment.Center
         ) {
@@ -255,89 +271,94 @@ fun BoxDemo() {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 4 · MODIFIER
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: Modifier
-// Modifier is an ordered chain of instructions applied to a composable.
-// Order matters: .padding().background() ≠ .background().padding()
-//
-//   Modifier
-//     .size(80.dp)          — constrain size
-//     .clip(shape)          — clip to shape  (applied before background)
-//     .background(color)    — fill clipped area
-//     .padding(8.dp)        — inner space (applied inside the clipped area)
+/**
+ * Demonstracja działania **Modifier** i znaczenia kolejności w łańcuchu.
+ *
+ * [Modifier] to uporządkowany łańcuch instrukcji stosowanych do composable.
+ * **Kolejność ma znaczenie:** `.padding().background() ≠ .background().padding()`
+ *
+ * Przykład łańcucha:
+ * ```
+ * Modifier
+ *   .size(80.dp)       — ogranicza rozmiar
+ *   .clip(shape)       — przycina do kształtu (stosowane przed tłem)
+ *   .background(color) — wypełnia przyciętą powierzchnię kolorem
+ *   .padding(8.dp)     — wewnętrzny odstęp (stosowany wewnątrz przyciętego obszaru)
+ * ```
+ *
+ * Przypadki w tym przykładzie:
+ * - **A** `padding → background` — obszar padding NIE jest pokolorowany
+ * - **B** `background → padding` — tło pokrywa obszar padding
+ * - **C** `clip + background`    — pokazuje wpływ clip na kształt wypełnienia
+ *
+ * @param modifier opcjonalny Modifier przekazywany przez wywołującego
+ */
 @Composable
 fun ModifierDemo(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── A: padding OUTSIDE background — padding area is NOT coloured ──
+        /** A: padding na ZEWNĄTRZ tła — obszar padding NIE jest pokolorowany. */
         Text(
             text = "A: padding → background",
             modifier = Modifier
-                .border(2.dp, MaterialTheme.colorScheme.primary) // border shows the full size of the composable
-                .padding(12.dp)         // space added BEFORE background — not coloured
+                .border(2.dp, MaterialTheme.colorScheme.primary)
+                .padding(12.dp)
                 .background(MaterialTheme.colorScheme.secondaryContainer)
-                .padding(8.dp),         // inner space inside the coloured box
+                .padding(8.dp),
             style = MaterialTheme.typography.bodyMedium
         )
 
-        // ── B: background FIRST, then padding — background covers the padding area ──
+        /** B: tło NAJPIERW, potem padding — tło pokrywa obszar padding. */
         Text(
             text = "B: background → padding",
             modifier = Modifier
-                .border(2.dp, MaterialTheme.colorScheme.primary) // border shows the full size of the composable
-                .background(MaterialTheme.colorScheme.tertiaryContainer) // coloured first
-                .padding(12.dp).padding(8.dp),        // inner space — sits inside the coloured area
+                .border(2.dp, MaterialTheme.colorScheme.primary)
+                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                .padding(12.dp)
+                .padding(8.dp),
             style = MaterialTheme.typography.bodyMedium
         )
 
-        // ── C: clip + background + size — shows how clip affects the fill shape ──
+        /** C: clip + background + size — pokazuje wpływ clip na kształt wypełnienia. */
         Box(
             modifier = Modifier
                 .size(80.dp)
-                .clip(CircleShape)                                        // clips to circle
-                .background(MaterialTheme.colorScheme.primaryContainer),  // fills the circle
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Text("C", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
         }
-
-        Text(
-            text = "Order: A has outer gap, B fills to edge, C shows clip.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outline
-        )
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 5 · CARD
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: Card
-// Card is a Material3 container with built-in elevation (shadow), shape, and a
-// background colour from the theme. It is the standard way to group related
-// content into a visually distinct tile.
-//
-// Variants:
-//   Card            — non-interactive (no ripple)
-//   ElevatedCard    — same but with a drop-shadow elevation
-//   OutlinedCard    — border instead of shadow
-//   Card(onClick=…) — tappable with ripple feedback
+/**
+ * Demonstracja wariantów **Card**.
+ *
+ * [Card] to kontener Material3 z wbudowaną elewacją (cień), kształtem
+ * i kolorem tła z motywu. To standardowy sposób grupowania powiązanych treści
+ * w wizualnie wyróżniony kafelek.
+ *
+ * Warianty:
+ * - `Card` — nieinteraktywny (bez efektu ripple)
+ * - `ElevatedCard` — jak Card, ale z cieniem elewacji
+ * - `OutlinedCard` — ramka zamiast cienia
+ * - `Card(onClick=…)` — klikalny z efektem ripple
+ */
 @Composable
-fun CardDemo() {
+fun CardDemo(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
-        // ── A: Basic (filled) Card ───────────────────────────────────────────
-        // Card uses colorScheme.surfaceContainerHigh as its default background.
-        // Pass a Modifier to control its size and layout in the parent.
+        /**
+         * A: Podstawowy Card (wypełniony).
+         *
+         * Domyślnie używa `colorScheme.surfaceContainerHigh` jako tła.
+         * Przekaż Modifier, aby kontrolować rozmiar i układ w rodzicu.
+         */
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -352,7 +373,7 @@ fun CardDemo() {
             }
         }
 
-        // ── B: ElevatedCard — drop-shadow makes it float above the background ─
+        /** B: ElevatedCard — cień sprawia, że element unosi się nad tłem. */
         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -367,7 +388,7 @@ fun CardDemo() {
             }
         }
 
-        // ── C: OutlinedCard — stroke instead of shadow ───────────────────────
+        /** C: OutlinedCard — obrys zamiast cienia, płaski wygląd. */
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -382,9 +403,13 @@ fun CardDemo() {
             }
         }
 
-        // ── D: Clickable Card — tappable tile with ripple ────────────────────
-        // Pass onClick to make the whole card interactive.
-        // Use CardDefaults.cardColors() to override the container colour.
+        /**
+         * D: Klikalny Card — kafelek z efektem ripple.
+         *
+         * Przekaż `onClick`, aby cały Card był interaktywny.
+         * Użyj `CardDefaults.cardColors()`, aby nadpisać kolor kontenera.
+         * `.size(12.dp)` + `.clip(CircleShape)` zamienia dowolny composable w okrągłą odznakę.
+         */
         var clicked by remember { mutableStateOf(false) }
         Card(
             onClick = { clicked = !clicked },
@@ -412,7 +437,6 @@ fun CardDemo() {
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                // COMPOSABLE: Modifier — size + clip turns any composable into a circle badge
                 Box(
                     modifier = Modifier
                         .size(12.dp)
@@ -427,34 +451,34 @@ fun CardDemo() {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 6 · SURFACE
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: Surface
-// Surface is the lower-level primitive that Card is built on top of.
-// Use it when you want explicit control over:
-//   • tonalElevation  — colour tint from the theme elevation overlay
-//   • shadowElevation — drop-shadow depth in dp
-//   • shape           — RoundedCornerShape, CircleShape, CutCornerShape, etc.
-//   • color           — background colour (defaults to colorScheme.surface)
-//   • contentColor    — colour passed to children via LocalContentColor
-//
-// Card vs Surface:
-//   Card    → opinionated defaults (colours, click handling)  — use for content tiles
-//   Surface → blank slate with full control                   — use for custom containers
+/**
+ * Demonstracja kontenera **Surface**.
+ *
+ * [Surface] to prymityw niższego poziomu, na którym zbudowany jest [Card].
+ * Używaj go, gdy potrzebujesz pełnej kontroli nad:
+ * - `tonalElevation`  — odcień koloru z nakładki elewacji motywu
+ * - `shadowElevation` — głębokość cienia w dp
+ * - `shape`           — `RoundedCornerShape`, `CircleShape`, `CutCornerShape` itp.
+ * - `color`           — kolor tła (domyślnie `colorScheme.surface`)
+ * - `contentColor`    — kolor przekazywany dzieciom przez `LocalContentColor`
+ *
+ * ### Card vs Surface
+ * | Komponent | Kiedy używać                                          |
+ * |-----------|-------------------------------------------------------|
+ * | `Card`    | Gotowe domyślne ustawienia — kafelki z treścią        |
+ * | `Surface` | Pełna kontrola — niestandardowe kontenery             |
+ */
 @Composable
-fun SurfaceDemo() {
+fun SurfaceDemo(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
-        // ── A: Default Surface — colorScheme.surface background ─────────────
+        /** A: Domyślna Surface — tło `colorScheme.surface`, delikatny odcień elewacji. */
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            tonalElevation = 1.dp       // slight tint from elevation overlay
+            tonalElevation = 1.dp
         ) {
             Text(
                 text = "Surface — tonalElevation = 1.dp",
@@ -463,11 +487,11 @@ fun SurfaceDemo() {
             )
         }
 
-        // ── B: Higher tonal elevation — more pronounced tint ─────────────────
+        /** B: Wyższa elewacja tonalna — bardziej nasycony odcień. */
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            tonalElevation = 8.dp       // more saturated tint
+            tonalElevation = 8.dp
         ) {
             Text(
                 text = "Surface — tonalElevation = 8.dp",
@@ -476,9 +500,13 @@ fun SurfaceDemo() {
             )
         }
 
-        // ── C: Custom colour + shadowElevation ───────────────────────────────
-        // Provide an explicit color to override the theme surface colour entirely.
-        // shadowElevation adds a drop shadow independent of the tonal tint.
+        /**
+         * C: Niestandardowy kolor + shadowElevation.
+         *
+         * Podaj jawny `color`, aby całkowicie zastąpić kolor surface z motywu.
+         * `shadowElevation` dodaje cień niezależnie od odcienia tonalnego.
+         * `contentColor` jest automatycznie propagowany do dzieci przez `LocalContentColor`.
+         */
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -499,8 +527,11 @@ fun SurfaceDemo() {
             }
         }
 
-        // ── D: Clickable Surface — like Card but unstyled ────────────────────
-        // Surface(onClick = …) adds ripple feedback without any Card opinionation.
+        /**
+         * D: Klikalna Surface — jak Card, ale bez gotowych ustawień stylowania.
+         *
+         * `Surface(onClick = …)` dodaje efekt ripple bez żadnych narzuconych styli Card.
+         */
         var surfaceClicked by remember { mutableStateOf(false) }
         Surface(
             onClick = { surfaceClicked = !surfaceClicked },
@@ -521,29 +552,31 @@ fun SurfaceDemo() {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 7 · STATE HOISTING — CounterCard
-// ─────────────────────────────────────────────────────────────────────────────
-
-// COMPOSABLE: State Hoisting
-// CounterCard is STATELESS — it owns no mutable state.
-// It receives `count` (state DOWN) and `onIncrement` / `onReset` (events UP).
-//
-// Benefits of being stateless:
-//   • Easy to preview with any count value.
-//   • Easy to test — just call it with known inputs.
-//   • The parent decides what to do when the button is tapped.
-//
-//   ✅  CounterCard(count = count, onIncrement = { count++ })
-//   ❌  internal var count by remember { mutableStateOf(0) }  // hard to test / reuse
+/**
+ * Bezstanowa funkcja kompozycyjna demonstrująca **wynoszenie stanu**.
+ *
+ * [HoistedCounterCard] nie posiada żadnego zmiennego stanu wewnętrznego.
+ * Otrzymuje `count` (stan w **dół**) oraz `onIncrement` / `onReset` (zdarzenia w **górę**).
+ *
+ * ### Korzyści ze bezstanowości
+ * - Łatwe podglądy
+ * - Łatwe testowanie — znane dane wejściowe, przewidywalne dane wyjściowe
+ * - Rodzic decyduje, co zrobić po naciśnięciu przycisku
+ *
+ * @param count aktualna wartość licznika — płynie W DÓŁ od właściciela stanu
+ * @param onIncrement callback wywoływany po naciśnięciu „+ Increment" — zdarzenie W GÓRĘ
+ * @param onReset callback wywoływany po naciśnięciu „Reset" — zdarzenie W GÓRĘ
+ */
 @Composable
-fun CounterCard(
-    count: Int,                 // state flows DOWN
-    onIncrement: () -> Unit,    // event flows UP
-    onReset: () -> Unit         // event flows UP
+fun HoistedCounterCard(
+    count: Int,
+    onIncrement: () -> Unit,
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    //var count by remember { mutableStateOf(0) }
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -564,7 +597,6 @@ fun CounterCard(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // COMPOSABLE: Modifier — .weight(1f) splits the Row evenly between the buttons.
                 Button(
                     onClick = onIncrement,
                     modifier = Modifier.weight(1f)
@@ -589,9 +621,65 @@ fun CounterCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper — thin labelled divider used between sections
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ *  Demonstracja **CounterCard** z własnym stanem wewnętrznym.
+ *  Ten element jest samowystarczalny, ale jego stan nie jest dostępny dla rodzica ani innych elementów UI.
+ *  Zmniejsza to elastyczność i ponowną używalność.
+ */
+@Composable
+fun CounterCard(modifier: Modifier = Modifier) {
+    var count by remember { mutableStateOf(0) }
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Count: $count",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        count++
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("+ Increment")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        count = 0
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Reset")
+                }
+            }
+
+
+        }
+    }
+}
+
+/**
+ * Pomocniczy composable — cienki, etykietowany separator używany między sekcjami ekranu.
+ *
+ * @param label tekst wyświetlany na środku separatora
+ */
 @Composable
 fun SectionDivider(label: String) {
     Row(
@@ -610,23 +698,25 @@ fun SectionDivider(label: String) {
     }
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
-// PREVIEWS
+// Podglądy
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Preview(name = "Basics — Full Screen", group = "Basics", showBackground = true, showSystemUi = true)
+@Preview(name = "Basics — Column Demo", group = "Basics", showBackground = true)
 @Composable
-fun ComposableBasicsScreenPreview() {
+fun ColumnDemoPreview() {
     QuizShowcaseTheme {
-        ComposableBasicsScreen()
+        ColumnDemo()
     }
 }
 
-@Preview(name = "Basics — Counter Card (count=3)", group = "Basics", showBackground = true)
+
+@Preview(name = "Basics — Row Demo", group = "Basics", showBackground = true)
 @Composable
-fun CounterCardPreview() {
+fun RowDemoPreview() {
     QuizShowcaseTheme {
-        CounterCard(count = 3, onIncrement = {}, onReset = {})
+        RowDemo()
     }
 }
 
@@ -646,6 +736,26 @@ fun ModifierDemoPreview() {
     }
 }
 
+@Preview(name = "Basics — Counter Card (count=3)", group = "Basics", showBackground = true)
+@Composable
+fun CounterCardPreview() {
+    QuizShowcaseTheme {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            var count by remember { mutableStateOf(3) }
+            HoistedCounterCard(
+                count = count,
+                onIncrement = { count++ },
+                onReset = { count = 0 })
+
+            CounterCard()
+        }
+    }
+}
+
+
 @Preview(name = "Basics — Card Demo", group = "Basics", showBackground = true)
 @Composable
 fun CardDemoPreview() {
@@ -656,7 +766,10 @@ fun CardDemoPreview() {
     }
 }
 
-@Preview(name = "Basics — Surface Demo", group = "Basics", showBackground = false,
+@Preview(
+    name = "Basics — Surface Demo",
+    group = "Basics",
+    showBackground = false,
     showSystemUi = false,
     uiMode = Configuration.UI_MODE_NIGHT_YES or Configuration.UI_MODE_TYPE_NORMAL
 )
@@ -669,3 +782,14 @@ fun SurfaceDemoPreview() {
     }
 }
 
+
+@Preview(
+    name = "Basics — Full Screen", group = "Basics", showBackground = true,
+    showSystemUi = false
+)
+@Composable
+fun ComposableBasicsScreenPreview() {
+    QuizShowcaseTheme {
+        ComposableBasicsScreen()
+    }
+}

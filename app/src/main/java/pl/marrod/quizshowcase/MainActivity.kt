@@ -6,88 +6,55 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Computer
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Science
 import androidx.compose.runtime.*
-import pl.marrod.quizshowcase.data.Category
+import pl.marrod.quizshowcase.data.DataSource
 import pl.marrod.quizshowcase.ui.QuizScreen
 import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 
-// ACTIVITY: Definition
-// An Activity is a single, focused thing the user can do. It provides a window in which the app
-// draws its UI. Every activity must be declared in AndroidManifest.xml.
-// ComponentActivity is the Jetpack base class that integrates with Compose via setContent {}.
+/**
+ * MainActivity (podklasa Activity) jest punktem wejścia do aplikacji, zarządzającym cyklem życia
+ * i stanem UI. Aktywność jest odpowiedzialna za tworzenie i wyświetlanie interfejsu użytkownika,
+ * obsługę zdarzeń użytkownika oraz zarządzanie stanem aplikacji. W tym przypadku MainActivity
+ * wykorzystuje Jetpack Compose do definiowania interfejsu użytkownika. Każda aktywność musi być
+ * zadeklarowana w pliku AndroidManifest.xml, aby system Android mógł ją rozpoznać i uruchomić.
+ * Obecnym podejściem jesttworzenie aplikacji z pojedynczą aktywnością, a nawigację i różne ekrany
+ * obsługuje się za pomocą bibliotek takich jak Jetpack Navigation Component.
+ */
 class MainActivity : ComponentActivity() {
 
-    // ACTIVITY: State Management — option 1 of 3
-    // Each piece of state is a separate mutableStateOf property.
-    // Compose observes each one independently and only recomposes what changed.
-    // ✅ Survives recomposition  ❌ Does NOT survive configuration change (rotation)
-    // ❌ Does NOT survive process death
-    // See onSaveInstanceState() below for the full comparison.
 
-    // isDarkTheme lives here because it drives QuizShowcaseTheme() which wraps the whole UI.
-    private var isDarkTheme by mutableStateOf(false)
-
-    // categories lives here because it is initialised once in onCreate from hard-coded data.
-    private var categories by mutableStateOf<List<Category>>(emptyList())
-
-    // lifecycleEvents lives here because it is written in every lifecycle callback below.
+    /** [lifecycleEvents] to lista przechowująca zdarzenia cyklu życia Activity, która jest aktualizowana
+     * w każdym z metod cyklu życia (onCreate, onStart, onResume, onPause, onStop, onDestroy).
+     * Jest to używane do demonstracji i śledzenia kolejności wywołań tych metod podczas działania aplikacji.
+     */
     private var lifecycleEvents by mutableStateOf<List<String>>(emptyList())
 
-    // ACTIVITY: onCreate — the entry point of every Activity.
-    // Called when the system first creates the Activity, or re-creates it after a config change.
-    // Always call super.onCreate() first — it restores the saved instance state.
+    /** onCreate to metoda cyklu życia, która jest wywoływana, gdy system Android tworzy
+     *  nową instancję tej aktywności. Musi być zawsze nadpisana i powinna wywoływać super.onCreate()
+     *  jako pierwszą operację, aby system mógł poprawnie zainicjalizować stan aktywności. W tej
+     *  metodzie zwykle wykonuje się podstawową konfigurację, taką jak ustawianie widoku za pomocą
+     *  setContentView() lub, w przypadku Jetpack Compose, setContent { ... }. onCreate jest
+     *  wywoływana tylko raz podczas całego życia aktywności, chyba że nastąpi zmiana konfiguracji
+     *  (np. obrót ekranu), w tatkim przypadku system zniszczy i ponownie utworzy aktywność, wywołując
+     *  onCreate ponownie. Dlatego ważne jest, aby zarządzać stanem w taki sposób, aby przetrwał te
+     *  zmiany (np. rememberSaveable lub bardziej zaawansowanym rozwiązaniem jakim jest ViewModel).
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         logLifecycle("onCreate")
 
-        // ACTIVITY: applicationContext vs 'this'
-        // 'this' (Activity) is a Context tied to the Activity lifecycle — use it for UI operations
-        //   (inflating layouts, showing Toasts, starting activities).
-        // applicationContext is tied to the app's lifetime — use it for long-lived objects
-        //   (databases, repositories) to avoid leaking the Activity.
-        Log.d("Context", "App package (via applicationContext): ${applicationContext.packageName}")
-        Toast.makeText(
-            this,               // Activity context — correct for a short-lived UI operation
-            "App: ${applicationContext.packageName}",
-            Toast.LENGTH_SHORT
-        ).show()
-
-        if (categories.isEmpty()) {
-            categories = listOf(
-                Category("1", "Science", Icons.Rounded.Science),
-                Category("2", "History", Icons.Rounded.History),
-                Category("3", "Computing", Icons.Rounded.Computer),
-                Category("4", "Geography", Icons.Rounded.Public)
-            )
-        }
-
-        enableEdgeToEdge()
+              enableEdgeToEdge()
         setContent {
-            // ACTIVITY: State Management — option 2 of 3
-            // rememberSaveable { mutableStateOf() } is the RECOMMENDED Compose approach.
-            // Unlike a class-level mutableStateOf property, rememberSaveable:
-            //   ✅ Survives recomposition
-            //   ✅ Survives configuration changes (rotation, font-size change)
-            //   ✅ Survives process death (state is serialised into the saved-state Bundle)
-            //
-            // BEFORE (class property — loses state on rotation):
-            //   private var isDarkTheme by mutableStateOf(false)
-            //
-            // AFTER (rememberSaveable — survives rotation):
-            //   var isDarkTheme by rememberSaveable { mutableStateOf(false) }
-            //
-            // We keep the class properties here for demo purposes so students can see
-            // BOTH approaches and compare their behaviour using the Lifecycle Events panel.
-
+            /** Zarządzanie stanem motywu (ciemny/jasny) na poziomie aktywności, który jest przekazywany
+             *  do QuizScreen. Wykorzystanie remember pozwala na zachowanie tego stanu podczas
+             *  rekompozycji, ale nie przetrwa zmian konfiguracji (np. obrót ekranu). Dla pełnej
+             *  odporności na zmiany konfiguracji można by użyć rememberSaveable
+            */
+            var isDarkTheme by remember { mutableStateOf(false) }
             QuizShowcaseTheme(darkTheme = isDarkTheme) {
                 QuizScreen(
                     isDarkTheme = isDarkTheme,
-                    categories = categories,
+                    categories = DataSource.categories,
                     lifecycleEvents = lifecycleEvents,
                     onThemeToggle = { isDarkTheme = it },
                 )
@@ -95,72 +62,73 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // ACTIVITY: State Management — comparison table
-    // ┌────────────────────────────────────┬──────────────┬─────────────────┬────────────────┐
-    // │ Mechanism                          │ Recompose    │ Config change   │ Process death  │
-    // ├────────────────────────────────────┼──────────────┼─────────────────┼────────────────┤
-    // │ mutableStateOf (class property)    │ ✅ survives  │ ❌ lost         │ ❌ lost        │
-    // │ rememberSaveable { mutableStateOf} │ ✅ survives  │ ✅ survives     │ ✅ (Bundle)    │
-    // │ onSaveInstanceState / Bundle       │ ✅ survives  │ ✅ survives     │ ✅ survives    │
-    // │ ViewModel                          │ ✅ survives  │ ✅ survives     │ ❌ lost*       │
-    // └────────────────────────────────────┴──────────────┴─────────────────┴────────────────┘
-    // * ViewModel + SavedStateHandle survives process death too.
-    //
-    // onSaveInstanceState is called before the Activity may be killed.
-    // The Bundle is passed back into onCreate(savedInstanceState) and onRestoreInstanceState().
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        // categories and lifecycleEvents are not saved — they are cheap to recreate on restore.
-        // isDarkTheme is a Boolean; saving it here demonstrates manual Bundle usage.
-        outState.putBoolean("isDarkTheme", isDarkTheme)
-        Log.d("Lifecycle", "onSaveInstanceState — state saved to Bundle")
-    }
 
-    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
-        super.onRestoreInstanceState(savedInstanceState)
-        isDarkTheme = savedInstanceState.getBoolean("isDarkTheme", false)
-        Log.d("Lifecycle", "onRestoreInstanceState — restored: isDarkTheme=$isDarkTheme")
-    }
-
-    // ACTIVITY: onStart — Activity becomes visible to the user.
-    // Not yet in the foreground; user cannot interact yet.
+    /**
+     * onStart to metoda cyklu życia, która jest wywoływana, gdy aktywność staje się widoczna
+     * dla użytkownika ale nie umożliwia jeszcze interakcji.
+     */
     override fun onStart() {
         super.onStart()
         logLifecycle("onStart")
     }
 
-    // ACTIVITY: onResume — Activity is in the foreground and interactive.
-    // This is where you resume animations, sensors, camera, etc.
+    /**
+     * onResume to metoda cyklu życia, która jest wywoływana, gdy aktywność staje się interaktywna
+     * i użytkownik może z nią wchodzić w interakcje. W tej metodzie można uruchomić lub wznowić wszelkie operacje,
+     * które zostały wstrzymane w onPause, takie jak nasłuchiwanie czujników, odtwarzanie wideo czy aktualizowanie UI.
+     */
     override fun onResume() {
         super.onResume()
         logLifecycle("onResume")
     }
 
-    // ACTIVITY: onPause — Activity is partially obscured (e.g. a dialog on top).
-    // Pause anything that should not run when not in focus (e.g. video, sensors).
-    // Must be fast — onResume of the next Activity won't start until this returns.
+    /**
+     * onPause to metoda cyklu życia, która jest wywoływana, gdy system Android nakazuje aktywności
+     * przejść w stan wstrzymania, co oznacza, że użytkownik przestał z nią wchodzić w interakcje,
+     * ale nadal jest częściowo widoczna (np. pojawił się dialog lub inna aktywność jest na wierzchu).
+     * W tej metodzie należy wstrzymać wszelkie operacje, które nie powinny być aktywne, gdy użytkownik
+     * nie jest bezpośrednio zaangażowany, takie jak nasłuchiwanie czujników, odtwarzanie wideo itp.
+     */
     override fun onPause() {
         super.onPause()
         logLifecycle("onPause")
     }
 
-    // ACTIVITY: onStop — Activity is no longer visible to the user.
-    // Release heavy resources (cameras, GPS). Introduced state saves should happen here.
+    /**
+     * onStop to metoda cyklu życia, która jest wywoływana, gdy aktywność przestaje być widoczna
+     * dla użytkownika. Może to nastąpić, gdy użytkownik przechodzi do innej aktywności lub gdy
+     * ekran jest wyłączany. W tej metodzie należy zwolnić zasoby, które nie są potrzebne, oraz
+     * zapisać wszelkie dane, które powinny być zachowane, ponieważ aktywność może zostać zniszczona,
+     * jeśli system potrzebuje zwolnić pamięć.
+     */
     override fun onStop() {
         super.onStop()
         logLifecycle("onStop")
     }
 
-    // ACTIVITY: onDestroy — Activity is being destroyed.
-    // Either the user dismissed it, or the system is reclaiming memory.
-    // Use isFinishing to distinguish: if isFinishing == false, it's a config change.
+
+    /**
+     * onDestroy to metoda cyklu życia, która jest wywoływana, gdy aktywność jest niszczona.
+     * Może to nastąpić, gdy użytkownik zamyka aktywność lub gdy system Android musi zwolnić pamięć.
+     * W tej metodzie należy zwolnić wszelkie zasoby, które nie zostały zwolnione w onStop, oraz
+     * wykonać ostateczne czyszczenie.
+     */
     override fun onDestroy() {
         super.onDestroy()
+        // flaga isFinishing pozwala odróżnić,
+        // czy aktywność jest niszczona z powodu zamknięcia przez użytkownika (isFinishing == true) czy z
+        // powodu zmiany konfiguracji (isFinishing == false)
         logLifecycle("onDestroy — isFinishing=$isFinishing")
-    }
+   }
 
+    /**
+     * Loguje zdarzenia cyklu życia do logcat oraz aktualizuje listę lifecycleEvents
+     */
     private fun logLifecycle(event: String) {
         Log.d("Lifecycle", event)
+        // lifecycleEvents jest aktualizowane poprzez dodanie nowego zdarzenia do istniejącej listy.
+        // Ponieważ lifecycleEvents jest typu List<String>, a List jest domyślnie tylko do odczytu, tworzymy nową listę
+        // poprzez dodanie nowego zdarzenia do istniejącej listy.
         lifecycleEvents = lifecycleEvents + event
     }
 }

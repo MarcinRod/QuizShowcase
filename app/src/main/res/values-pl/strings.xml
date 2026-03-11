@@ -1,16 +1,3 @@
-<!--
-    RESOURCES: Internationalization (i18n)
-    This file is in the values-pl/ qualifier folder.
-    Android automatically picks the best-matching folder based on the device locale.
-
-    Resolution order example for locale = pl-PL:
-        1. values-pl-rPL/  (region-specific Polish)
-        2. values-pl/      (language-specific Polish)  ← this file
-        3. values/         (default fallback)
-
-    Any string NOT overridden here falls back to values/strings.xml.
-    To test: Settings → System → Language & input → add Polish as the first language.
--->
 <resources>
     <string name="app_name">QuizPokaz</string>
     <string name="welcome_message">Witaj w demonstracji quizu</string>
@@ -28,5 +15,46 @@
     <string name="difficulty_easy">Łatwy</string>
     <string name="difficulty_medium">Średni</string>
     <string name="difficulty_hard">Trudny</string>
+
+    <string name="difficulty_label">Poziom: %1$s</string>
+    <string name="lifecycle_events_title">Zdarzenia cyklu życia:</string>
+    <string name="progress_label">Postęp: %1$d%%</string>
+    <string name="question_counter">Pytanie %1$d z %2$d</string>
+    <string name="quit_quiz_button">Zakończ quiz</string>
+    <string name="settings_description">Ustawienia</string>
+
+    <!-- New questions — string-array approach -->
+    <string name="q9_cat1_text">Jaka jest najtwardsza naturalna substancja na Ziemi?</string>
+    <string-array name="q9_cat1_options">
+        <item>Złoto</item>
+        <item>Żelazo</item>
+        <item>Diament</item>
+        <item>Kwarc</item>
+    </string-array>
+
+    <string name="q10_cat2_text">Który starożytny cud świata znajdował się w Aleksandrii?</string>
+    <string-array name="q10_cat2_options">
+        <item>Kolos</item>
+        <item>Latarnia morska</item>
+        <item>Wiszące ogrody</item>
+        <item>Mauzoleum</item>
+    </string-array>
+
+    <string name="q11_cat3_text">Co oznacza skrót RAM?</string>
+    <string-array name="q11_cat3_options">
+        <item>Pamięć o dostępie swobodnym</item>
+        <item>Moduł odczytu danych</item>
+        <item>Szybka pamięć operacyjna</item>
+        <item>Tryb dostępu uruchomieniowego</item>
+    </string-array>
+
+    <string name="q12_cat4_text">Które państwo ma najwięcej naturalnych jezior?</string>
+    <string-array name="q12_cat4_options">
+        <item>Rosja</item>
+        <item>Stany Zjednoczone</item>
+        <item>Kanada</item>
+        <item>Brazylia</item>
+    </string-array>
+
 </resources>
 

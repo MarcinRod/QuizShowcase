@@ -2,7 +2,16 @@ package pl.marrod.quizshowcase.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -12,17 +21,34 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
-import androidx.compose.material.icons.rounded.Computer
-import androidx.compose.material.icons.rounded.History
-import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -32,65 +58,62 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import pl.marrod.quizshowcase.R
 import pl.marrod.quizshowcase.data.Category
+import pl.marrod.quizshowcase.data.DataSource
 import pl.marrod.quizshowcase.data.Question
 import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 
-// COMPOSABLE: Naming convention
-// Composable functions that emit UI are named as NOUNS (PascalCase), not verbs.
-// ✅ QuizScreen   ❌ showQuizScreen / drawQuizScreen
-// This mirrors the mental model of a "UI component" rather than a procedure call.
 
-// COMPOSABLE: State Hoisting
-// QuizScreen receives shared state from MainActivity (userName, categories, etc.)
-// and owns its own LOCAL state (selectedCategory, questions, score, etc.) directly
-// as remember variables — because nothing outside QuizScreen needs those values.
-//
-//   MainActivity                          ← SHARED state lives here as individual properties
-//       │  isDarkTheme, categories        ← passed DOWN as plain parameters — no wrapper class
-//       │  lifecycleEvents                ← passed DOWN as a plain parameter
-//       ▼
-//   QuizScreen
-//       ├── var selectedCategory         ← LOCAL state: only QuizScreen cares
-//       ├── var questions / score        ← LOCAL state: only QuizScreen cares
-//       ├── var userName                 ← LOCAL state: captured when a category is selected
-//       │   onThemeToggle(isDark)        ← event for SHARED state flows UP via lambda
-//       └──► MainActivity updates isDarkTheme → Compose recomposes QuizScreen
-//           ▼
-//       SetupSection
-//           ├── var userName             ← LOCAL state: typed by the user here
-//           └── var difficulty           ← LOCAL state: only SetupSection needs it
+/**
+ * Główny ekran aplikacji quizowej. Zarządza logiką nawigacji między trzema widokami:
+ * ekranem konfiguracji, ekranem pytań oraz ekranem wyników.
+ *
+ * Wyniesienie stanu (State Hoisting) — każdy fragment WSPÓŁDZIELONEGO stanu
+ * przepływa w dół jako osobny parametr.
+ *
+ * @param isDarkTheme czy aktywny jest ciemny motyw.
+ * @param categories lista dostępnych kategorii pytań.
+ * @param lifecycleEvents lista zdarzeń cyklu życia zarejestrowanych od startu aplikacji.
+ * @param onThemeToggle callback wywoływany przy przełączaniu motywu; przekazuje nową wartość flagi.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizScreen(
-    // COMPOSABLE: State Hoisting — each piece of SHARED state flows DOWN as its own parameter.
-    // There is no wrapper data class — each parameter is a plain value owned by MainActivity.
     isDarkTheme: Boolean,
     categories: List<Category>,
     lifecycleEvents: List<String>,
-    // COMPOSABLE: State Hoisting — only isDarkTheme needs an event up, everything else is local
+    // Wyniesienie stanu — tylko isDarkTheme wymaga zdarzenia w górę, reszta jest lokalna
     onThemeToggle: (Boolean) -> Unit,
 ) {
-    // COMPOSABLE: Local state — these variables are owned by QuizScreen.
-    // They use remember so Compose tracks changes and triggers recomposition.
-    // Nothing outside this composable needs to read or write them, so there
-    // is no reason to hoist them further up to MainActivity.
-    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    // Stan lokalny — te zmienne należą do QuizScreen.
+    // Używają remember, żeby Compose śledził zmiany i wyzwalał rekompozycję.
+    // Nic poza tą funkcją kompozycyjną nie odczytuje ani nie zapisuje tych wartości,
+    // więc nie ma powodu wynosić ich wyżej do MainActivity.
+    var selectedCategory by remember { mutableStateOf<Category?>(null) } // <— pokazanie utraty stanu przy rotacji ekranu — nie używamy rememberSaveable
     var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
     var currentQuestionIndex by remember { mutableStateOf(0) }
     var score by remember { mutableStateOf(0) }
     var isQuizFinished by remember { mutableStateOf(false) }
     var showExitDialog by remember { mutableStateOf(false) }
+
+    // userName jest stanem lokalnym, bo jest używane tylko w QuizScreen
+    // i przekazywane do ResultsSection po zakończeniu quizu.
     var userName by remember { mutableStateOf("") }
 
-    // Derived values computed from local state — no need to store separately.
+    // LocalContext daje dostęp do Android Context wewnątrz funkcji kompozycyjnych.
+    // Używamy go tutaj, aby uzyskać instancję Resources przekazywaną do DataSource.getQuestions(),
+    // dzięki czemu może ona rozwiązywać wpisy R.string.* i R.array.* w czasie wykonania.
+    val resources = LocalContext.current.resources
+
+    // Wartości pochodne obliczane ze stanu lokalnego — nie trzeba ich osobno przechowywać.
     val currentQuestion = questions.getOrNull(currentQuestionIndex)
     val progress = if (questions.isNotEmpty()) currentQuestionIndex.toFloat() / questions.size else 0f
 
-    // Local event handlers — they only touch local state, so they live here too.
+    // Lokalna obsługa zdarzeń — działa wyłącznie na stanie lokalnym, więc są zdefiniowane tutaj.
+    // Umieszczone wewnątrz funkcji kompozycyjnej, bo bezpośrednio modyfikują zmienne stanu zdefiniowane powyżej.
     fun selectCategory(category: Category, name: String) {
         selectedCategory = category
         userName = name
-        questions = getMockQuestions(category.id)
+        questions = DataSource.getQuestions(category.id, resources)
         currentQuestionIndex = 0
         score = 0
         isQuizFinished = false
@@ -114,33 +137,32 @@ fun QuizScreen(
         isQuizFinished = false
     }
 
-    // COMPOSABLE: Containers — Scaffold
-    // Scaffold is a Material3 layout container that provides slots for TopAppBar,
-    // BottomBar, FAB, Snackbar, etc. and handles their positioning automatically.
+    // Scaffold to kontener układu Material3, który ułatwia implementację standardowych elementów
+    // interfejsu, takich jak AppBar, BottomBar, FAB, Snackbar itp.
     Scaffold(
         topBar = {
-            // RESOURCES: stringResource(R.string.app_name) reads from res/values/strings.xml.
-            // On a Polish device it automatically reads res/values-pl/strings.xml instead.
-            // R.string.app_name is a generated Int constant — the R class is rebuilt on every sync.
+            //  stringResource(R.string.app_name) odczytuje dane z res/values/strings.xml.
+            // Na polskim urządzeniu automatycznie sięga po res/values-pl/strings.xml.
+            // R.string.app_name to wygenerowana stała Int — klasa R jest przebudowywana przy każdej synchronizacji.
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = { /* Settings */ }) {
+                    IconButton(onClick = { /* Ustawienia */ }) {
                         Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.settings_description))
                     }
                 }
             )
-        },
-        contentWindowInsets = WindowInsets.systemBars
+        }
     ) { innerPadding ->
-        // COMPOSABLE: Containers — Column
-        // Column stacks children vertically. Use it when the number of items is small and known.
-        // For large/unknown lists use LazyColumn (only composes visible items).
+        // Column układa dzieci pionowo. Używaj go, gdy liczba elementów jest mała i znana.
+        // Dla dużych lub list o nieznanej długości stosuj LazyColumn (tworzy tylko widoczne elementy).
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                // RESOURCES: dimensionResource() reads from res/values/dimens.xml → R.dimen.*
+                // dimensionResource() odczytuje dane z res/values/dimens.xml → R.dimen.*
+                // Zasoby wymiarów zapewniają spójne odstępy i rozmiary w całej aplikacji
+                // i można je nadpisywać dla różnych rozmiarów ekranu.
                 .padding(horizontal = dimensionResource(R.dimen.padding_medium))
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -154,11 +176,7 @@ fun QuizScreen(
                     onCategorySelect = { category, name -> selectCategory(category, name) }
                 )
             } else if (!isQuizFinished) {
-                QuizProgressSection(
-                    progress = progress,
-                    currentQuestionIndex = currentQuestionIndex,
-                    totalQuestions = questions.size
-                )
+                QuizProgressSection( progress = progress )
 
                 Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
@@ -167,7 +185,7 @@ fun QuizScreen(
                     currentQuestionIndex = currentQuestionIndex,
                     totalQuestions = questions.size,
                     onAnswerSelected = { onAnswerSelected(it) },
-                    onToggleExitDialog = { showExitDialog = it }
+                    onShowExitDialog = { showExitDialog = true }
                 )
             } else {
                 ResultsSection(
@@ -202,7 +220,17 @@ fun QuizScreen(
     }
 }
 
-// COMPOSABLE: Naming — SetupSection is a noun describing the screen section, not an action.
+/**
+ * Sekcja konfiguracji quizu wyświetlana przed jego rozpoczęciem.
+ * Umożliwia wprowadzenie nazwy użytkownika, wybór motywu, poziomu trudności
+ * oraz kategorii pytań. Pokazuje też historię zdarzeń cyklu życia.
+ *
+ * @param isDarkTheme czy aktywny jest ciemny motyw.
+ * @param categories lista dostępnych kategorii pytań.
+ * @param lifecycleEvents lista zdarzeń cyklu życia do wyświetlenia.
+ * @param onThemeToggle callback wywoływany przy przełączaniu motywu.
+ * @param onCategorySelect callback wywoływany po wyborze kategorii; przyjmuje wybraną kategorię i nazwę użytkownika.
+ */
 @Composable
 fun SetupSection(
     isDarkTheme: Boolean,
@@ -211,26 +239,17 @@ fun SetupSection(
     onThemeToggle: (Boolean) -> Unit,
     onCategorySelect: (Category, String) -> Unit
 ) {
-    // COMPOSABLE: Local state — userName and difficulty belong here because:
-    //   • Only SetupSection reads/writes them while the user is on the setup screen.
-    //   • userName is forwarded to QuizScreen via onCategorySelect when the quiz starts.
-    //   • difficulty is used locally to filter questions; passed along the same way.
-    //
-    // rememberSaveable persists the value across configuration changes (e.g. rotation).
-    // Use it for anything the user has typed or selected that would be annoying to lose.
+
+    // rememberSaveable zachowuje wartość przez zmiany konfiguracji (np. obrót ekranu).
+    // Używaj go dla wszystkiego, co użytkownik wpisał lub wybrał, a co byłoby uciążliwe
+    // do ponownego wprowadzania.
     var userName by rememberSaveable { mutableStateOf("") }
 
-    // remember (without Saveable) is sufficient for difficulty: losing it on rotation is
-    // acceptable — the user can easily reset a slider, unlike re-typing a name.
+    // Zwykłe remember (bez Saveable) dla pokazania utraty stanu przy rotacji ekranu.
     var difficulty by remember { mutableStateOf(1f) }
 
-    // COMPOSABLE: Containers — Column for vertical stacking of heterogeneous children.
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-        // RESOURCES DEMO — stringResource()
-        // stringResource(R.string.welcome_message) → res/values/strings.xml
-        // On Polish locale    → res/values-pl/strings.xml  (alternative resource)
-        // R.string.welcome_message is an Int constant generated by the Android build system.
         Text(
             stringResource(R.string.welcome_message),
             style = MaterialTheme.typography.headlineSmall,
@@ -242,7 +261,6 @@ fun SetupSection(
         TextField(
             value = userName,
             onValueChange = { userName = it },
-            // RESOURCES DEMO — R.string.user_name_label → res/values/strings.xml
             label = { Text(stringResource(R.string.user_name_label)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -250,7 +268,6 @@ fun SetupSection(
 
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
-        // COMPOSABLE: Containers — Row for horizontal alignment of two elements.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -270,10 +287,11 @@ fun SetupSection(
                 2 -> stringResource(R.string.difficulty_medium)
                 3 -> stringResource(R.string.difficulty_hard)
                 else -> stringResource(R.string.difficulty_easy)
-            }
-            // RESOURCES DEMO — format string with argument:
-            // R.string.difficulty_label = "Difficulty: %1$s"  (res/values/strings.xml)
-            // stringResource(R.string.difficulty_label, difficultyLabel) formats it at runtime.
+            } // można też wykorzystać string-array i indeks difficulty.toInt() - 1
+
+            // Format stringa z argumentem:
+            // R.string.difficulty_label = "Trudność: %1$s"  (res/values/strings.xml)
+            // stringResource(R.string.difficulty_label, difficultyLabel) formatuje go w czasie wykonania.
             Text(stringResource(R.string.difficulty_label, difficultyLabel))
             Slider(
                 value = difficulty,
@@ -294,10 +312,10 @@ fun SetupSection(
 
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
 
-        // COMPOSABLE: Containers — LazyVerticalGrid
-        // Use LazyVerticalGrid when you have a fixed number of columns and potentially many items.
-        // "Lazy" means only visible items are composed/measured — efficient for long lists.
-        // Compare with: Column (all items composed) / LazyColumn (1 column) / LazyRow (1 row)
+
+        // LazyVerticalGrid stosuj, gdy masz stałą liczbę kolumn i potencjalnie wiele elementów.
+        // „Lazy" oznacza, że tylko widoczne elementy są tworzone i mierzone — efektywne dla długich list.
+        // Porównaj z: Column (wszystkie elementy kompozycji) / LazyColumn (1 kolumna) / LazyRow (1 wiersz)
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             horizontalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_small)),
@@ -305,10 +323,7 @@ fun SetupSection(
             modifier = Modifier.heightIn(max = 300.dp)
         ) {
             items(categories) { category ->
-                // COMPOSABLE: Modifier — passing modifier to CategoryCard.
-                // The caller controls layout concerns (size, padding, click area).
-                // CategoryCard forwards it to its root composable — see CategoryCard below.
-                CategoryCard(
+               CategoryCard(
                     category = category,
                     modifier = Modifier,
                     onClick = { onCategorySelect(category, userName) }
@@ -316,15 +331,14 @@ fun SetupSection(
             }
         }
 
-        // ACTIVITY: Lifecycle Events Panel
-        // This panel shows every lifecycle callback that was called since app start.
-        // Rotate the screen — with a class-level mutableStateOf, the list resets.
-        // Switch to rememberSaveable to see it survive the config change.
+        // Panel pokazuje każde zdarzenie cyklu życia wywołane od startu aplikacji.
+        // Obróć ekran — przy mutableStateOf na poziomie klasy lista się zeruje.
+
         if (lifecycleEvents.isNotEmpty()) {
             Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
             Text(stringResource(R.string.lifecycle_events_title), style = MaterialTheme.typography.labelSmall)
-            // COMPOSABLE: Containers — LazyRow
-            // Use LazyRow for a horizontal scrolling list of items.
+            // Kontenery — LazyRow
+            // Stosuj LazyRow do poziomej listy elementów.
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -353,38 +367,30 @@ fun SetupSection(
     }
 }
 
-// COMPOSABLE: Naming — CategoryCard: noun + context = clear, self-documenting name.
-//
-// COMPOSABLE: Modifier — Best practice: always accept a Modifier parameter with a default of
-// Modifier.  Apply it as the FIRST modifier on the root element. This lets callers control
-// layout (size, padding, alignment) without needing to know the internals.
-//
-//   ✅  fun CategoryCard(modifier: Modifier = Modifier, ...)
-//   ❌  fun CategoryCard(...)  // caller cannot influence layout
+/**
+ * Karta reprezentująca pojedynczą kategorię quizu.
+ * Wyświetla ikonę i nazwę kategorii w karcie Material3.
+ *
+ * @param category obiekt kategorii zawierający ikonę i nazwę.
+ * @param modifier zewnętrzny [Modifier] przekazywany przez wywołującego; domyślna wartość pozwala go pominąć.
+ * @param onClick callback wywoływany po kliknięciu karty.
+ */
 @Composable
 fun CategoryCard(
     category: Category,
-    modifier: Modifier = Modifier,   // COMPOSABLE: Modifier — default value lets callers omit it
+    modifier: Modifier = Modifier,   // Modifier — domyślna wartość pozwala wywołującemu go pominąć
     onClick: () -> Unit
 ) {
-    // RESOURCES DEMO — colorResource()
-    // colorResource(R.color.primary_light) reads directly from res/values/colors.xml.
-    // In night mode it automatically reads res/values-night/colors.xml (alternative resource).
-    // Compare with MaterialTheme.colorScheme.primary — the Material token system is PREFERRED
-    // in Compose apps because it respects dynamic color (Android 12+) and the theme contract.
-    // colorResource() is useful when you need exact brand colors or interoperability with Views.
-    @Suppress("UNUSED_VARIABLE")
-    val brandColor = colorResource(R.color.primary_light) // direct XML resource access — demo only
 
     Card(
-        // COMPOSABLE: Modifier — the externally-provided modifier is applied FIRST,
-        // then this component adds its own internal modifiers (height, clickable).
+        // Zewnętrznie przekazany modifier jest stosowany JAKO PIERWSZY,
+        // następnie komponent dodaje własne wewnętrzne modyfikatory (height, clickable).
         modifier = modifier
             .fillMaxWidth()
             .height(dimensionResource(R.dimen.card_height))
             .clickable { onClick() },
         colors = CardDefaults.cardColors(
-            // MaterialTheme color — adapts to dynamic color / dark mode automatically
+            // Kolor MaterialTheme — automatycznie dostosowuje się do Dynamic Color i trybu ciemnego
             containerColor = MaterialTheme.colorScheme.primaryContainer
         )
     ) {
@@ -397,34 +403,34 @@ fun CategoryCard(
                 category.icon,
                 contentDescription = null,
                 modifier = Modifier.size(dimensionResource(R.dimen.icon_size_medium)),
-                // RESOURCES DEMO — using brandColor (colorResource) vs MaterialTheme:
-                // tint = brandColor            // exact XML color — ignores theme
-                tint = MaterialTheme.colorScheme.onPrimaryContainer  // theme-aware (preferred)
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Text(category.name, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
 
-// COMPOSABLE: Naming — QuizProgressSection: describes what the section shows, not what it does.
+/**
+ * Sekcja paska postępu quizu pokazująca, ile pytań zostało już udzielonych.
+ *
+ * @param progress wartość postępu w zakresie 0.0–1.0 (0% – 100%).
+ * @param modifier zewnętrzny [Modifier] umożliwiający wielokrotne użycie funkcji kompozycyjnej w dowolnym miejscu.
+ */
 @Composable
 fun QuizProgressSection(
     progress: Float,
-    currentQuestionIndex: Int,
-    totalQuestions: Int,
-    // COMPOSABLE: Modifier — accepting Modifier makes this composable reusable at any call site.
+    // Przyjmowanie Modifier sprawia, że funkcja kompozycyjna może być wielokrotnego użytku i
+    // łatwo integrowana z różnymi układami. Wywołujący może przekazać własny Modifier,
+    // aby dostosować wygląd i zachowanie tej sekcji bez modyfikowania jej wewnętrznej logiki.
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
-        // RESOURCES DEMO — R.string.progress_label = "Progress: %1$d%%"
-        // The %% is an escaped % sign — stringResource formats the Int argument into %1$d.
         Text(
             stringResource(R.string.progress_label, (progress * 100).toInt()),
             style = MaterialTheme.typography.labelMedium
         )
         LinearProgressIndicator(
             progress = { progress },
-            // RESOURCES DEMO — R.dimen.progress_bar_height → res/values/dimens.xml
             modifier = Modifier
                 .fillMaxWidth()
                 .height(dimensionResource(R.dimen.progress_bar_height)),
@@ -433,14 +439,23 @@ fun QuizProgressSection(
     }
 }
 
-// COMPOSABLE: Naming — QuestionSection: noun describing the content region.
+/**
+ * Sekcja wyświetlająca bieżące pytanie quizu wraz z opcjami odpowiedzi.
+ * Zawiera też przycisk wyjścia otwierający dialog potwierdzenia.
+ *
+ * @param question bieżące pytanie do wyświetlenia lub `null`, jeśli brak pytania.
+ * @param currentQuestionIndex indeks (0-based) bieżącego pytania.
+ * @param totalQuestions łączna liczba pytań w quizie.
+ * @param onAnswerSelected callback wywoływany po wybraniu odpowiedzi; przyjmuje indeks wybranej opcji.
+ * @param onShowExitDialog callback wywoływany po kliknięciu przycisku wyjścia.
+ */
 @Composable
 fun QuestionSection(
     question: Question?,
     currentQuestionIndex: Int,
     totalQuestions: Int,
     onAnswerSelected: (Int) -> Unit,
-    onToggleExitDialog: (Boolean) -> Unit
+    onShowExitDialog: (Boolean) -> Unit
 ) {
     Column {
         question ?: return@Column
@@ -462,11 +477,10 @@ fun QuestionSection(
 
             Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_large)))
 
-            // COMPOSABLE: Containers — Column (non-lazy) for answer options.
-            // We use Column instead of LazyColumn here because:
-            //   • The number of options is always small (≤ 4) and fixed at runtime.
-            //   • The parent is already inside a verticalScroll — nested LazyColumn
-            //     requires a fixed height, which would be awkward here.
+            // Używamy Column zamiast LazyColumn, ponieważ:
+            //   • Liczba opcji jest zawsze mała (≤ 4) i stała w czasie wykonania.
+            //   • Rodzic jest już wewnątrz verticalScroll - nie chcemy zagnieżdżać kolejnej listy
+            //   przewijalnej.
             Column(
                 verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_medium))
             ) {
@@ -489,7 +503,7 @@ fun QuestionSection(
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
         OutlinedButton(
-            onClick = { onToggleExitDialog(true) },
+            onClick = { onShowExitDialog(true) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.quit_quiz_button))
@@ -499,7 +513,16 @@ fun QuestionSection(
     }
 }
 
-// COMPOSABLE: Naming — ResultsSection: describes the quiz-result content region.
+
+/**
+ * Sekcja wyników wyświetlana po zakończeniu quizu.
+ * Pokazuje końcowy wynik użytkownika z możliwością powrotu do wyboru kategorii.
+ *
+ * @param userName nazwa użytkownika wprowadzona w ekranie konfiguracji.
+ * @param score liczba poprawnych odpowiedzi udzielonych przez użytkownika.
+ * @param totalQuestions łączna liczba pytań w quizie.
+ * @param onResetQuiz callback wywoływany po kliknięciu przycisku powrotu do kategorii.
+ */
 @Composable
 fun ResultsSection(
     userName: String,
@@ -512,15 +535,16 @@ fun ResultsSection(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // RESOURCES: painterResource(R.drawable.ic_quiz_trophy)
-        // Loads the vector drawable from res/drawable/ic_quiz_trophy.xml via the R class.
-        // R.drawable.ic_quiz_trophy is an Int ID generated at build time.
+        // painterResource(R.drawable.ic_quiz_trophy)
+        // Wczytuje vector drawable z res/drawable/ic_quiz_trophy.xml przez klasę R.
+        // R.drawable.ic_quiz_trophy to stała Int generowana w czasie budowania.
         //
-        // Compare with Material Icons used elsewhere in the app:
-        //   Icon(Icons.Rounded.Science, ...)      — in-memory ImageVector, NO R class involved
-        //   painterResource(R.drawable.*)         — XML asset, resolved through R class at runtime
+        // Porównaj z ikonami Material używanymi w innych miejscach aplikacji:
+        //   Icon(Icons.Rounded.Science, ...)      — ImageVector w pamięci, klasa R NIE jest używana
+        //   painterResource(R.drawable.*)         — zasób XML, rozwiązywany przez klasę R w czasie wykonania
         //
-        // Use painterResource() for custom/brand assets; use Icons.* for standard Material icons.
+        // Używaj painterResource() dla własnych zasobów graficznych;
+        // używaj Icons.* dla standardowych ikon Material (nie wszystkie są w ten sposób dostępne).
         Image(
             painter = painterResource(R.drawable.ic_quiz_trophy),
             contentDescription = null,
@@ -572,58 +596,40 @@ fun ResultsSection(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPOSABLE: @Preview
-// @Preview renders a composable in the IDE without running the app on a device.
-// Best practices:
-//   • One preview per significant UI state (setup, in-progress, results).
-//   • Use name= and group= to organise previews in the Preview pane.
-//   • Never call real data sources inside a preview — use hardcoded mock data.
-//   • Wrap in QuizShowcaseTheme so the preview matches the real app's styling.
+// @Preview renderuje podgląd funkcji kompozycyjnej w IDE bez uruchamiania aplikacji na urządzeniu.
+// Dobre praktyki:
+//   • Jeden podgląd na każdy istotny stan UI (konfiguracja, trwający quiz, wyniki).
+//   • Używaj name= i group= do organizowania podglądów w panelu Preview.
+//   • Nigdy nie wywołuj prawdziwych źródeł danych w podglądzie — używaj  danych testowych.
+//   • Używaj QuizShowcaseTheme, żeby podgląd odpowiadał stylowi rzeczywistej aplikacji.
 // ─────────────────────────────────────────────────────────────────────────────
 
-private val mockCategories = listOf(
-    Category("1", "Science", Icons.Rounded.Science),
-    Category("2", "History", Icons.Rounded.History),
-    Category("3", "Computing", Icons.Rounded.Computer),
-    Category("4", "Geography", Icons.Rounded.Public)
-)
 
-private val mockQuestions = listOf(
-    Question(1, "What is the chemical symbol for Water?", listOf("H2O", "O2", "CO2", "NaCl"), 0, "1"),
-    Question(2, "Which planet is the Red Planet?", listOf("Earth", "Mars", "Jupiter", "Saturn"), 1, "1")
-)
 
-// COMPOSABLE: Preview — Setup screen (initial state, no category selected yet)
 @Preview(name = "Setup Screen", group = "QuizShowcase", showBackground = true, showSystemUi = true)
 @Composable
 fun QuizSetupPreview() {
     QuizShowcaseTheme {
         QuizScreen(
             isDarkTheme = false,
-            categories = mockCategories,
+            categories = DataSource.categories,
             lifecycleEvents = listOf("onCreate", "onStart", "onResume"),
             onThemeToggle = {},
         )
     }
 }
 
-// COMPOSABLE: Preview — Quiz in progress (category selected, question visible)
-// Note: selectedCategory, questions etc. are now LOCAL state inside QuizScreen —
-// they cannot be injected from outside, so this preview starts from the setup screen.
-// To preview deeper states, extract QuizProgressSection / QuestionSection individually.
+
 @Preview(name = "Quiz In Progress", group = "QuizShowcase", showBackground = true, showSystemUi = true)
 @Composable
 fun QuizInProgressPreview() {
     QuizShowcaseTheme {
         QuizProgressSection(
-            progress = 0.5f,
-            currentQuestionIndex = 1,
-            totalQuestions = 2
+            progress = 0.5f
         )
     }
 }
 
-// COMPOSABLE: Preview — Results screen (quiz finished)
 @Preview(name = "Quiz Results", group = "QuizShowcase", showBackground = true, showSystemUi = true)
 @Composable
 fun QuizResultsPreview() {
@@ -637,25 +643,3 @@ fun QuizResultsPreview() {
     }
 }
 
-// Helper — kept here because it is only ever used inside this composable tree.
-fun getMockQuestions(categoryId: String): List<Question> {
-    return when (categoryId) {
-        "1" -> listOf(
-            Question(1, "What is the chemical symbol for Water?", listOf("H2O", "O2", "CO2", "NaCl"), 0, "1"),
-            Question(2, "Which planet is known as the Red Planet?", listOf("Earth", "Mars", "Jupiter", "Saturn"), 1, "1")
-        )
-        "2" -> listOf(
-            Question(3, "Who was the first President of the United States?", listOf("Thomas Jefferson", "Abraham Lincoln", "George Washington", "John Adams"), 2, "2"),
-            Question(4, "In which year did World War II end?", listOf("1943", "1944", "1945", "1946"), 2, "2")
-        )
-        "3" -> listOf(
-            Question(5, "What does CPU stand for?", listOf("Central Process Unit", "Central Processing Unit", "Computer Personal Unit", "Central Processor Unifier"), 1, "3"),
-            Question(6, "Which language is used for Android development?", listOf("Swift", "Kotlin", "C#", "Ruby"), 1, "3")
-        )
-        "4" -> listOf(
-            Question(7, "What is the capital of France?", listOf("Berlin", "Madrid", "Paris", "Rome"), 2, "4"),
-            Question(8, "Which is the largest continent?", listOf("Africa", "Asia", "Europe", "Antarctica"), 1, "4")
-        )
-        else -> emptyList()
-    }
-}

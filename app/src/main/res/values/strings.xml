@@ -21,4 +21,41 @@
     <string name="difficulty_medium">Medium</string>
     <string name="difficulty_hard">Hard</string>
     <string name="settings_description">Settings</string>
+
+    <!-- Category 1 — Science (question 9) -->
+    <string name="q9_cat1_text">What is the hardest natural substance on Earth?</string>
+    <string-array name="q9_cat1_options">
+        <item>Gold</item>
+        <item>Iron</item>
+        <item>Diamond</item>
+        <item>Quartz</item>
+    </string-array>
+
+    <!-- Category 2 — History (question 10) -->
+    <string name="q10_cat2_text">Which ancient wonder was located in Alexandria?</string>
+    <string-array name="q10_cat2_options">
+        <item>The Colossus</item>
+        <item>The Lighthouse</item>
+        <item>The Hanging Gardens</item>
+        <item>The Mausoleum</item>
+    </string-array>
+
+    <!-- Category 3 — Computing (question 11) -->
+    <string name="q11_cat3_text">What does RAM stand for?</string>
+    <string-array name="q11_cat3_options">
+        <item>Random Access Memory</item>
+        <item>Read Anything Module</item>
+        <item>Rapid Action Memory</item>
+        <item>Run Access Mode</item>
+    </string-array>
+
+    <!-- Category 4 — Geography (question 12) -->
+    <string name="q12_cat4_text">Which country has the most natural lakes?</string>
+    <string-array name="q12_cat4_options">
+        <item>Russia</item>
+        <item>United States</item>
+        <item>Canada</item>
+        <item>Brazil</item>
+    </string-array>
+
 </resources>
