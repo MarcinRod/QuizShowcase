@@ -2,7 +2,6 @@
 
 Aplikacja quizowa dla Androida napisana w **Kotlin** z użyciem **Jetpack Compose**, stworzona jako projekt dydaktyczny demonstrujący kluczowe koncepcje nowoczesnego programowania na Androida.
 
----
 
 ## Cel projektu
 
@@ -17,7 +16,6 @@ QuizShowcase to projekt pokazowy (ang. *showcase*) przeznaczony do nauki i preze
 | **Compose Layouts** | `Column`, `Row`, `LazyColumn`, `LazyRow`, `LazyVerticalGrid`, `Scaffold` |
 | **Material 3** | `TopAppBar`, `Card`, `Button`, `Slider`, `Switch`, `LinearProgressIndicator`, `AlertDialog` |
 
----
 
 ## Struktura projektu
 
@@ -32,8 +30,6 @@ app/src/main/java/pl/marrod/quizshowcase/
     ├── QuizScreen.kt        # Główny ekran quizu i wszystkie sekcje kompozytów
     └── theme/               # Motyw Material 3 (kolory, typografia, kształty)
 ```
-
----
 
 ## Ekrany aplikacji
 
@@ -54,5 +50,4 @@ app/src/main/java/pl/marrod/quizshowcase/
 - Wynik końcowy w formacie `X / Y`
 - Przycisk powrotu do wyboru kategorii
 
----
 
