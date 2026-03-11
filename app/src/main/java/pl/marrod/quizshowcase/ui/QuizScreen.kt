@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.colorResource
@@ -40,31 +41,79 @@ import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 // This mirrors the mental model of a "UI component" rather than a procedure call.
 
 // COMPOSABLE: State Hoisting
-// QuizScreen owns NO state itself — it receives state as parameters and emits events
-// upward via lambda callbacks. This is the "state down, events up" pattern.
+// QuizScreen receives shared state from MainActivity (userName, categories, etc.)
+// and owns its own LOCAL state (selectedCategory, questions, score, etc.) directly
+// as remember variables — because nothing outside QuizScreen needs those values.
 //
-//   MainActivity (_uiState)          ← state lives HERE (the "hoist point")
-//       │  uiState (read-only copy)  ← passed DOWN as a parameter
+//   MainActivity                          ← SHARED state lives here as individual properties
+//       │  isDarkTheme, categories        ← passed DOWN as plain parameters — no wrapper class
+//       │  lifecycleEvents                ← passed DOWN as a plain parameter
 //       ▼
 //   QuizScreen
-//       │  onUserNameChange(name)    ← events flow UP via lambdas
-//       └──► MainActivity updates _uiState → Compose recomposes QuizScreen
-//
-// Benefits: QuizScreen is stateless → easier to test, preview, and reuse.
+//       ├── var selectedCategory         ← LOCAL state: only QuizScreen cares
+//       ├── var questions / score        ← LOCAL state: only QuizScreen cares
+//       ├── var userName                 ← LOCAL state: captured when a category is selected
+//       │   onThemeToggle(isDark)        ← event for SHARED state flows UP via lambda
+//       └──► MainActivity updates isDarkTheme → Compose recomposes QuizScreen
+//           ▼
+//       SetupSection
+//           ├── var userName             ← LOCAL state: typed by the user here
+//           └── var difficulty           ← LOCAL state: only SetupSection needs it
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizScreen(
-    // COMPOSABLE: State Hoisting — state flows DOWN as an immutable snapshot
-    uiState: QuizUiState,
-    // COMPOSABLE: State Hoisting — events flow UP as lambda parameters
-    onUserNameChange: (String) -> Unit,
+    // COMPOSABLE: State Hoisting — each piece of SHARED state flows DOWN as its own parameter.
+    // There is no wrapper data class — each parameter is a plain value owned by MainActivity.
+    isDarkTheme: Boolean,
+    categories: List<Category>,
+    lifecycleEvents: List<String>,
+    // COMPOSABLE: State Hoisting — only isDarkTheme needs an event up, everything else is local
     onThemeToggle: (Boolean) -> Unit,
-    onDifficultyChange: (Float) -> Unit,
-    onCategorySelect: (Category) -> Unit,
-    onAnswerSelected: (Int) -> Unit,
-    onToggleExitDialog: (Boolean) -> Unit,
-    onResetQuiz: () -> Unit
 ) {
+    // COMPOSABLE: Local state — these variables are owned by QuizScreen.
+    // They use remember so Compose tracks changes and triggers recomposition.
+    // Nothing outside this composable needs to read or write them, so there
+    // is no reason to hoist them further up to MainActivity.
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
+    var questions by remember { mutableStateOf<List<Question>>(emptyList()) }
+    var currentQuestionIndex by remember { mutableStateOf(0) }
+    var score by remember { mutableStateOf(0) }
+    var isQuizFinished by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
+    var userName by remember { mutableStateOf("") }
+
+    // Derived values computed from local state — no need to store separately.
+    val currentQuestion = questions.getOrNull(currentQuestionIndex)
+    val progress = if (questions.isNotEmpty()) currentQuestionIndex.toFloat() / questions.size else 0f
+
+    // Local event handlers — they only touch local state, so they live here too.
+    fun selectCategory(category: Category, name: String) {
+        selectedCategory = category
+        userName = name
+        questions = getMockQuestions(category.id)
+        currentQuestionIndex = 0
+        score = 0
+        isQuizFinished = false
+    }
+
+    fun onAnswerSelected(answerIndex: Int) {
+        val isCorrect = currentQuestion?.correctAnswerIndex == answerIndex
+        if (isCorrect) score++
+        if (currentQuestionIndex + 1 < questions.size) {
+            currentQuestionIndex++
+        } else {
+            isQuizFinished = true
+        }
+    }
+
+    fun resetQuiz() {
+        selectedCategory = null
+        questions = emptyList()
+        currentQuestionIndex = 0
+        score = 0
+        isQuizFinished = false
+    }
+
     // COMPOSABLE: Containers — Scaffold
     // Scaffold is a Material3 layout container that provides slots for TopAppBar,
     // BottomBar, FAB, Snackbar, etc. and handles their positioning automatically.
@@ -96,46 +145,54 @@ fun QuizScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (uiState.selectedCategory == null) {
+            if (selectedCategory == null) {
                 SetupSection(
-                    uiState = uiState,
-                    onUserNameChange = onUserNameChange,
+                    isDarkTheme = isDarkTheme,
+                    categories = categories,
+                    lifecycleEvents = lifecycleEvents,
                     onThemeToggle = onThemeToggle,
-                    onDifficultyChange = onDifficultyChange,
-                    onCategorySelect = onCategorySelect
+                    onCategorySelect = { category, name -> selectCategory(category, name) }
                 )
-            } else if (!uiState.isQuizFinished) {
-                QuizProgressSection(uiState)
+            } else if (!isQuizFinished) {
+                QuizProgressSection(
+                    progress = progress,
+                    currentQuestionIndex = currentQuestionIndex,
+                    totalQuestions = questions.size
+                )
 
                 Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
                 QuestionSection(
-                    uiState = uiState,
-                    onAnswerSelected = onAnswerSelected,
-                    onToggleExitDialog = onToggleExitDialog
+                    question = currentQuestion,
+                    currentQuestionIndex = currentQuestionIndex,
+                    totalQuestions = questions.size,
+                    onAnswerSelected = { onAnswerSelected(it) },
+                    onToggleExitDialog = { showExitDialog = it }
                 )
             } else {
                 ResultsSection(
-                    uiState = uiState,
-                    onResetQuiz = onResetQuiz
+                    userName = userName,
+                    score = score,
+                    totalQuestions = questions.size,
+                    onResetQuiz = { resetQuiz() }
                 )
             }
         }
     }
 
-    if (uiState.showExitDialog) {
+    if (showExitDialog) {
         AlertDialog(
-            onDismissRequest = { onToggleExitDialog(false) },
+            onDismissRequest = { showExitDialog = false },
             confirmButton = {
                 TextButton(onClick = {
-                    onToggleExitDialog(false)
-                    onResetQuiz()
+                    showExitDialog = false
+                    resetQuiz()
                 }) {
                     Text(stringResource(R.string.exit_confirm_button))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onToggleExitDialog(false) }) {
+                TextButton(onClick = { showExitDialog = false }) {
                     Text(stringResource(R.string.cancel_button))
                 }
             },
@@ -148,12 +205,25 @@ fun QuizScreen(
 // COMPOSABLE: Naming — SetupSection is a noun describing the screen section, not an action.
 @Composable
 fun SetupSection(
-    uiState: QuizUiState,
-    onUserNameChange: (String) -> Unit,
+    isDarkTheme: Boolean,
+    categories: List<Category>,
+    lifecycleEvents: List<String>,
     onThemeToggle: (Boolean) -> Unit,
-    onDifficultyChange: (Float) -> Unit,
-    onCategorySelect: (Category) -> Unit
+    onCategorySelect: (Category, String) -> Unit
 ) {
+    // COMPOSABLE: Local state — userName and difficulty belong here because:
+    //   • Only SetupSection reads/writes them while the user is on the setup screen.
+    //   • userName is forwarded to QuizScreen via onCategorySelect when the quiz starts.
+    //   • difficulty is used locally to filter questions; passed along the same way.
+    //
+    // rememberSaveable persists the value across configuration changes (e.g. rotation).
+    // Use it for anything the user has typed or selected that would be annoying to lose.
+    var userName by rememberSaveable { mutableStateOf("") }
+
+    // remember (without Saveable) is sufficient for difficulty: losing it on rotation is
+    // acceptable — the user can easily reset a slider, unlike re-typing a name.
+    var difficulty by remember { mutableStateOf(1f) }
+
     // COMPOSABLE: Containers — Column for vertical stacking of heterogeneous children.
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
@@ -170,8 +240,8 @@ fun SetupSection(
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
 
         TextField(
-            value = uiState.userName,
-            onValueChange = onUserNameChange,
+            value = userName,
+            onValueChange = { userName = it },
             // RESOURCES DEMO — R.string.user_name_label → res/values/strings.xml
             label = { Text(stringResource(R.string.user_name_label)) },
             modifier = Modifier.fillMaxWidth(),
@@ -187,7 +257,7 @@ fun SetupSection(
         ) {
             Text(stringResource(R.string.dark_theme_toggle), modifier = Modifier.weight(1f))
             Switch(
-                checked = uiState.isDarkTheme,
+                checked = isDarkTheme,
                 onCheckedChange = onThemeToggle
             )
         }
@@ -195,7 +265,7 @@ fun SetupSection(
         Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_small)))
 
         Column(modifier = Modifier.fillMaxWidth()) {
-            val difficultyLabel = when (uiState.difficulty.toInt()) {
+            val difficultyLabel = when (difficulty.toInt()) {
                 1 -> stringResource(R.string.difficulty_easy)
                 2 -> stringResource(R.string.difficulty_medium)
                 3 -> stringResource(R.string.difficulty_hard)
@@ -206,8 +276,8 @@ fun SetupSection(
             // stringResource(R.string.difficulty_label, difficultyLabel) formats it at runtime.
             Text(stringResource(R.string.difficulty_label, difficultyLabel))
             Slider(
-                value = uiState.difficulty,
-                onValueChange = onDifficultyChange,
+                value = difficulty,
+                onValueChange = { difficulty = it },
                 valueRange = 1f..3f,
                 steps = 1
             )
@@ -234,14 +304,14 @@ fun SetupSection(
             verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.padding_small)),
             modifier = Modifier.heightIn(max = 300.dp)
         ) {
-            items(uiState.categories) { category ->
+            items(categories) { category ->
                 // COMPOSABLE: Modifier — passing modifier to CategoryCard.
                 // The caller controls layout concerns (size, padding, click area).
                 // CategoryCard forwards it to its root composable — see CategoryCard below.
                 CategoryCard(
                     category = category,
-                    modifier = Modifier,   // caller can override: e.g. Modifier.testTag("cat_${category.id}")
-                    onClick = { onCategorySelect(category) }
+                    modifier = Modifier,
+                    onClick = { onCategorySelect(category, userName) }
                 )
             }
         }
@@ -250,7 +320,7 @@ fun SetupSection(
         // This panel shows every lifecycle callback that was called since app start.
         // Rotate the screen — with a class-level mutableStateOf, the list resets.
         // Switch to rememberSaveable to see it survive the config change.
-        if (uiState.lifecycleEvents.isNotEmpty()) {
+        if (lifecycleEvents.isNotEmpty()) {
             Spacer(modifier = Modifier.height(dimensionResource(R.dimen.spacing_standard)))
             Text(stringResource(R.string.lifecycle_events_title), style = MaterialTheme.typography.labelSmall)
             // COMPOSABLE: Containers — LazyRow
@@ -262,13 +332,13 @@ fun SetupSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                itemsIndexed(uiState.lifecycleEvents) { index, event ->
+                itemsIndexed(lifecycleEvents) { index, event ->
                     Text(
                         text = event,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
-                    if (index < uiState.lifecycleEvents.size - 1) {
+                    if (index < lifecycleEvents.size - 1) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                             contentDescription = null,
@@ -303,7 +373,8 @@ fun CategoryCard(
     // Compare with MaterialTheme.colorScheme.primary — the Material token system is PREFERRED
     // in Compose apps because it respects dynamic color (Android 12+) and the theme contract.
     // colorResource() is useful when you need exact brand colors or interoperability with Views.
-    val brandColor = colorResource(R.color.primary_light) // direct XML resource access
+    @Suppress("UNUSED_VARIABLE")
+    val brandColor = colorResource(R.color.primary_light) // direct XML resource access — demo only
 
     Card(
         // COMPOSABLE: Modifier — the externally-provided modifier is applied FIRST,
@@ -338,7 +409,9 @@ fun CategoryCard(
 // COMPOSABLE: Naming — QuizProgressSection: describes what the section shows, not what it does.
 @Composable
 fun QuizProgressSection(
-    uiState: QuizUiState,
+    progress: Float,
+    currentQuestionIndex: Int,
+    totalQuestions: Int,
     // COMPOSABLE: Modifier — accepting Modifier makes this composable reusable at any call site.
     modifier: Modifier = Modifier
 ) {
@@ -346,11 +419,11 @@ fun QuizProgressSection(
         // RESOURCES DEMO — R.string.progress_label = "Progress: %1$d%%"
         // The %% is an escaped % sign — stringResource formats the Int argument into %1$d.
         Text(
-            stringResource(R.string.progress_label, (uiState.progress * 100).toInt()),
+            stringResource(R.string.progress_label, (progress * 100).toInt()),
             style = MaterialTheme.typography.labelMedium
         )
         LinearProgressIndicator(
-            progress = { uiState.progress },
+            progress = { progress },
             // RESOURCES DEMO — R.dimen.progress_bar_height → res/values/dimens.xml
             modifier = Modifier
                 .fillMaxWidth()
@@ -363,16 +436,18 @@ fun QuizProgressSection(
 // COMPOSABLE: Naming — QuestionSection: noun describing the content region.
 @Composable
 fun QuestionSection(
-    uiState: QuizUiState,
+    question: Question?,
+    currentQuestionIndex: Int,
+    totalQuestions: Int,
     onAnswerSelected: (Int) -> Unit,
     onToggleExitDialog: (Boolean) -> Unit
 ) {
     Column {
-        val question = uiState.currentQuestion ?: return@Column
+        question ?: return@Column
 
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = stringResource(R.string.question_counter, uiState.currentQuestionIndex + 1, uiState.questions.size),
+                text = stringResource(R.string.question_counter, currentQuestionIndex + 1, totalQuestions),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.secondary
             )
@@ -427,7 +502,9 @@ fun QuestionSection(
 // COMPOSABLE: Naming — ResultsSection: describes the quiz-result content region.
 @Composable
 fun ResultsSection(
-    uiState: QuizUiState,
+    userName: String,
+    score: Int,
+    totalQuestions: Int,
     onResetQuiz: () -> Unit
 ) {
     Column(
@@ -459,7 +536,7 @@ fun ResultsSection(
         )
 
         Text(
-            stringResource(R.string.great_job_message, uiState.userName),
+            stringResource(R.string.great_job_message, userName),
             style = MaterialTheme.typography.titleMedium
         )
 
@@ -476,7 +553,7 @@ fun ResultsSection(
             ) {
                 Text(stringResource(R.string.your_score_label), style = MaterialTheme.typography.labelLarge)
                 Text(
-                    "${uiState.score} / ${uiState.questions.size}",
+                    "$score / $totalQuestions",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Black
                 )
@@ -522,41 +599,26 @@ private val mockQuestions = listOf(
 fun QuizSetupPreview() {
     QuizShowcaseTheme {
         QuizScreen(
-            uiState = QuizUiState(
-                categories = mockCategories,
-                lifecycleEvents = listOf("onCreate", "onStart", "onResume")
-            ),
-            onUserNameChange = {},
+            isDarkTheme = false,
+            categories = mockCategories,
+            lifecycleEvents = listOf("onCreate", "onStart", "onResume"),
             onThemeToggle = {},
-            onDifficultyChange = {},
-            onCategorySelect = {},
-            onAnswerSelected = {},
-            onToggleExitDialog = {},
-            onResetQuiz = {}
         )
     }
 }
 
 // COMPOSABLE: Preview — Quiz in progress (category selected, question visible)
+// Note: selectedCategory, questions etc. are now LOCAL state inside QuizScreen —
+// they cannot be injected from outside, so this preview starts from the setup screen.
+// To preview deeper states, extract QuizProgressSection / QuestionSection individually.
 @Preview(name = "Quiz In Progress", group = "QuizShowcase", showBackground = true, showSystemUi = true)
 @Composable
 fun QuizInProgressPreview() {
     QuizShowcaseTheme {
-        QuizScreen(
-            uiState = QuizUiState(
-                userName = "Ada",
-                categories = mockCategories,
-                selectedCategory = mockCategories[0],
-                questions = mockQuestions,
-                currentQuestionIndex = 0
-            ),
-            onUserNameChange = {},
-            onThemeToggle = {},
-            onDifficultyChange = {},
-            onCategorySelect = {},
-            onAnswerSelected = {},
-            onToggleExitDialog = {},
-            onResetQuiz = {}
+        QuizProgressSection(
+            progress = 0.5f,
+            currentQuestionIndex = 1,
+            totalQuestions = 2
         )
     }
 }
@@ -566,22 +628,34 @@ fun QuizInProgressPreview() {
 @Composable
 fun QuizResultsPreview() {
     QuizShowcaseTheme {
-        QuizScreen(
-            uiState = QuizUiState(
-                userName = "Ada",
-                categories = mockCategories,
-                selectedCategory = mockCategories[0],
-                questions = mockQuestions,
-                score = 2,
-                isQuizFinished = true
-            ),
-            onUserNameChange = {},
-            onThemeToggle = {},
-            onDifficultyChange = {},
-            onCategorySelect = {},
-            onAnswerSelected = {},
-            onToggleExitDialog = {},
+        ResultsSection(
+            userName = "Ada",
+            score = 2,
+            totalQuestions = 2,
             onResetQuiz = {}
         )
+    }
+}
+
+// Helper — kept here because it is only ever used inside this composable tree.
+fun getMockQuestions(categoryId: String): List<Question> {
+    return when (categoryId) {
+        "1" -> listOf(
+            Question(1, "What is the chemical symbol for Water?", listOf("H2O", "O2", "CO2", "NaCl"), 0, "1"),
+            Question(2, "Which planet is known as the Red Planet?", listOf("Earth", "Mars", "Jupiter", "Saturn"), 1, "1")
+        )
+        "2" -> listOf(
+            Question(3, "Who was the first President of the United States?", listOf("Thomas Jefferson", "Abraham Lincoln", "George Washington", "John Adams"), 2, "2"),
+            Question(4, "In which year did World War II end?", listOf("1943", "1944", "1945", "1946"), 2, "2")
+        )
+        "3" -> listOf(
+            Question(5, "What does CPU stand for?", listOf("Central Process Unit", "Central Processing Unit", "Computer Personal Unit", "Central Processor Unifier"), 1, "3"),
+            Question(6, "Which language is used for Android development?", listOf("Swift", "Kotlin", "C#", "Ruby"), 1, "3")
+        )
+        "4" -> listOf(
+            Question(7, "What is the capital of France?", listOf("Berlin", "Madrid", "Paris", "Rome"), 2, "4"),
+            Question(8, "Which is the largest continent?", listOf("Africa", "Asia", "Europe", "Antarctica"), 1, "4")
+        )
+        else -> emptyList()
     }
 }

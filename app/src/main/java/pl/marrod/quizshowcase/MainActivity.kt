@@ -13,9 +13,7 @@ import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Science
 import androidx.compose.runtime.*
 import pl.marrod.quizshowcase.data.Category
-import pl.marrod.quizshowcase.data.Question
 import pl.marrod.quizshowcase.ui.QuizScreen
-import pl.marrod.quizshowcase.ui.QuizUiState
 import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 
 // ACTIVITY: Definition
@@ -25,11 +23,20 @@ import pl.marrod.quizshowcase.ui.theme.QuizShowcaseTheme
 class MainActivity : ComponentActivity() {
 
     // ACTIVITY: State Management — option 1 of 3
-    // mutableStateOf() at the class level makes Compose observe changes to _uiState.
+    // Each piece of state is a separate mutableStateOf property.
+    // Compose observes each one independently and only recomposes what changed.
     // ✅ Survives recomposition  ❌ Does NOT survive configuration change (rotation)
     // ❌ Does NOT survive process death
     // See onSaveInstanceState() below for the full comparison.
-    private var _uiState by mutableStateOf(QuizUiState())
+
+    // isDarkTheme lives here because it drives QuizShowcaseTheme() which wraps the whole UI.
+    private var isDarkTheme by mutableStateOf(false)
+
+    // categories lives here because it is initialised once in onCreate from hard-coded data.
+    private var categories by mutableStateOf<List<Category>>(emptyList())
+
+    // lifecycleEvents lives here because it is written in every lifecycle callback below.
+    private var lifecycleEvents by mutableStateOf<List<String>>(emptyList())
 
     // ACTIVITY: onCreate — the entry point of every Activity.
     // Called when the system first creates the Activity, or re-creates it after a config change.
@@ -50,15 +57,13 @@ class MainActivity : ComponentActivity() {
             Toast.LENGTH_SHORT
         ).show()
 
-        val initialCategories = listOf(
-            Category("1", "Science", Icons.Rounded.Science),
-            Category("2", "History", Icons.Rounded.History),
-            Category("3", "Computing", Icons.Rounded.Computer),
-            Category("4", "Geography", Icons.Rounded.Public)
-        )
-
-        if (_uiState.categories.isEmpty()) {
-            _uiState = _uiState.copy(categories = initialCategories)
+        if (categories.isEmpty()) {
+            categories = listOf(
+                Category("1", "Science", Icons.Rounded.Science),
+                Category("2", "History", Icons.Rounded.History),
+                Category("3", "Computing", Icons.Rounded.Computer),
+                Category("4", "Geography", Icons.Rounded.Public)
+            )
         }
 
         enableEdgeToEdge()
@@ -69,27 +74,22 @@ class MainActivity : ComponentActivity() {
             //   ✅ Survives recomposition
             //   ✅ Survives configuration changes (rotation, font-size change)
             //   ✅ Survives process death (state is serialised into the saved-state Bundle)
-            // The value must be either a primitive, a Parcelable, or use a custom Saver.
             //
             // BEFORE (class property — loses state on rotation):
-            //   private var _uiState by mutableStateOf(QuizUiState())
+            //   private var isDarkTheme by mutableStateOf(false)
             //
             // AFTER (rememberSaveable — survives rotation):
-            //   var uiState by rememberSaveable { mutableStateOf(QuizUiState()) }
+            //   var isDarkTheme by rememberSaveable { mutableStateOf(false) }
             //
-            // We keep the class property here for demo purposes so students can see
+            // We keep the class properties here for demo purposes so students can see
             // BOTH approaches and compare their behaviour using the Lifecycle Events panel.
 
-            QuizShowcaseTheme(darkTheme = _uiState.isDarkTheme) {
+            QuizShowcaseTheme(darkTheme = isDarkTheme) {
                 QuizScreen(
-                    uiState = _uiState,
-                    onUserNameChange = { name -> _uiState = _uiState.copy(userName = name) },
-                    onThemeToggle = { isDark -> _uiState = _uiState.copy(isDarkTheme = isDark) },
-                    onDifficultyChange = { value -> _uiState = _uiState.copy(difficulty = value) },
-                    onCategorySelect = { category -> selectCategory(category) },
-                    onAnswerSelected = { index -> onAnswerSelected(index) },
-                    onToggleExitDialog = { show -> _uiState = _uiState.copy(showExitDialog = show) },
-                    onResetQuiz = { resetQuiz() }
+                    isDarkTheme = isDarkTheme,
+                    categories = categories,
+                    lifecycleEvents = lifecycleEvents,
+                    onThemeToggle = { isDarkTheme = it },
                 )
             }
         }
@@ -110,21 +110,16 @@ class MainActivity : ComponentActivity() {
     // The Bundle is passed back into onCreate(savedInstanceState) and onRestoreInstanceState().
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        // Example: save a primitive into the Bundle manually.
-        // For complex state, prefer rememberSaveable with a Parcelable data class.
-        outState.putString("userName", _uiState.userName)
-        outState.putInt("score", _uiState.score)
+        // categories and lifecycleEvents are not saved — they are cheap to recreate on restore.
+        // isDarkTheme is a Boolean; saving it here demonstrates manual Bundle usage.
+        outState.putBoolean("isDarkTheme", isDarkTheme)
         Log.d("Lifecycle", "onSaveInstanceState — state saved to Bundle")
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
-        // Called after onStart() when there IS a saved state to restore.
-        // Complements onCreate(savedInstanceState) — either place works.
-        val savedName = savedInstanceState.getString("userName", "")
-        val savedScore = savedInstanceState.getInt("score", 0)
-        _uiState = _uiState.copy(userName = savedName, score = savedScore)
-        Log.d("Lifecycle", "onRestoreInstanceState — restored: name=$savedName, score=$savedScore")
+        isDarkTheme = savedInstanceState.getBoolean("isDarkTheme", false)
+        Log.d("Lifecycle", "onRestoreInstanceState — restored: isDarkTheme=$isDarkTheme")
     }
 
     // ACTIVITY: onStart — Activity becomes visible to the user.
@@ -166,67 +161,6 @@ class MainActivity : ComponentActivity() {
 
     private fun logLifecycle(event: String) {
         Log.d("Lifecycle", event)
-        _uiState = _uiState.copy(lifecycleEvents = _uiState.lifecycleEvents + event)
-    }
-
-    private fun selectCategory(category: Category) {
-        val questions = getMockQuestions(category.id)
-        _uiState = _uiState.copy(
-            selectedCategory = category,
-            questions = questions,
-            currentQuestionIndex = 0,
-            score = 0,
-            isQuizFinished = false
-        )
-    }
-
-    private fun onAnswerSelected(answerIndex: Int) {
-        val isCorrect = _uiState.currentQuestion?.correctAnswerIndex == answerIndex
-        val newScore = if (isCorrect) _uiState.score + 1 else _uiState.score
-
-        if (_uiState.currentQuestionIndex + 1 < _uiState.questions.size) {
-            _uiState = _uiState.copy(
-                currentQuestionIndex = _uiState.currentQuestionIndex + 1,
-                score = newScore
-            )
-        } else {
-            _uiState = _uiState.copy(
-                score = newScore,
-                isQuizFinished = true
-            )
-        }
-    }
-
-    private fun resetQuiz() {
-        _uiState = _uiState.copy(
-            selectedCategory = null,
-            questions = emptyList(),
-            currentQuestionIndex = 0,
-            score = 0,
-            isQuizFinished = false
-        )
-    }
-
-
-    private fun getMockQuestions(categoryId: String): List<Question> {
-        return when (categoryId) {
-            "1" -> listOf(
-                Question(1, "What is the chemical symbol for Water?", listOf("H2O", "O2", "CO2", "NaCl"), 0, "1"),
-                Question(2, "Which planet is known as the Red Planet?", listOf("Earth", "Mars", "Jupiter", "Saturn"), 1, "1")
-            )
-            "2" -> listOf(
-                Question(3, "Who was the first President of the United States?", listOf("Thomas Jefferson", "Abraham Lincoln", "George Washington", "John Adams"), 2, "2"),
-                Question(4, "In which year did World War II end?", listOf("1943", "1944", "1945", "1946"), 2, "2")
-            )
-            "3" -> listOf(
-                Question(5, "What does CPU stand for?", listOf("Central Process Unit", "Central Processing Unit", "Computer Personal Unit", "Central Processor Unifier"), 1, "3"),
-                Question(6, "Which language is used for Android development?", listOf("Swift", "Kotlin", "C#", "Ruby"), 1, "3")
-            )
-            "4" -> listOf(
-                Question(7, "What is the capital of France?", listOf("Berlin", "Madrid", "Paris", "Rome"), 2, "4"),
-                Question(8, "Which is the largest continent?", listOf("Africa", "Asia", "Europe", "Antarctica"), 1, "4")
-            )
-            else -> emptyList()
-        }
+        lifecycleEvents = lifecycleEvents + event
     }
 }
