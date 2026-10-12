@@ -638,7 +638,7 @@ fun QuizResultsPreview() {
 }
 
 // Helper — kept here because it is only ever used inside this composable tree.
-fun getMockQuestions(categoryId: String): List<Question> {
+private fun getMockQuestions(categoryId: String): List<Question> {
     return when (categoryId) {
         "1" -> listOf(
             Question(1, "What is the chemical symbol for Water?", listOf("H2O", "O2", "CO2", "NaCl"), 0, "1"),

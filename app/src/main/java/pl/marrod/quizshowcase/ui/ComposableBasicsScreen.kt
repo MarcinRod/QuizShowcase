@@ -581,10 +581,65 @@ fun CounterCard(
             }
 
             Text(
-                text = "State lives in ComposableBasicsScreen, not here.",
+                text = "State lives in a parent, not here.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline
             )
+        }
+    }
+}
+
+
+/**
+ *  Demonstration of **StatefulCounterCard** with its own internal state.
+ *  This element is self-contained, but its state is not accessible to the parent or other UI elements.
+ *  This reduces flexibility and reusability.
+ */
+@Composable
+fun StatefulCounterCard(modifier: Modifier = Modifier) {
+    var count by remember { mutableStateOf(0) }
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Count: $count",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        count++
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("+ Increment")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        count = 0
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Reset")
+                }
+            }
+
+
         }
     }
 }
@@ -622,11 +677,22 @@ fun ComposableBasicsScreenPreview() {
     }
 }
 
-@Preview(name = "Basics — Counter Card (count=3)", group = "Basics", showBackground = true)
+@Preview(name = "Basics — Counter Card", group = "Basics", showBackground = true)
 @Composable
 fun CounterCardPreview() {
     QuizShowcaseTheme {
-        CounterCard(count = 3, onIncrement = {}, onReset = {})
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            var count by remember { mutableStateOf(3) }
+            CounterCard(
+                count = count,
+                onIncrement = { count++ },
+                onReset = { count = 0 })
+
+            StatefulCounterCard()
+        }
     }
 }
 
